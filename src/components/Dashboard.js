@@ -1,14 +1,14 @@
 'use client'
 
 import React from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
-import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer, RechartsTooltip, Legend } from 'recharts'
+import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
 const COLORS = ['#FFD700', '#B8860B', '#E5E4E2', '#DAA520'] // Gold, 22k, Silver, Physical Gold (Darker Gold)
 
-export default function InvestmentDashboard({ investments, onDelete, prices, loadingPrices, onRefresh, refreshing }) {
+export default function InvestmentDashboard({ investments, onDelete, onSell, prices, loadingPrices, onRefresh, refreshing }) {
 
     // Calculations
     const calculateMetrics = () => {
@@ -256,12 +256,22 @@ export default function InvestmentDashboard({ investments, onDelete, prices, loa
                                                     {format(new Date(inv.purchase_date), 'dd.MM.yyyy')}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => onDelete(inv.id)}
-                                                        className="text-red-400 hover:text-red-600 transition-colors"
-                                                    >
-                                                        Sil
-                                                    </button>
+                                                    <div className="flex justify-end space-x-2">
+                                                        <button
+                                                            onClick={() => onSell(inv)}
+                                                            className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                                            title="Bozdur / Sat"
+                                                        >
+                                                            <DollarSign size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => onDelete(inv.id)}
+                                                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                                            title="Sil"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

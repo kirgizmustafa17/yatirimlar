@@ -4,13 +4,15 @@ import React, { useState, useEffect } from 'react'
 import { Plus, RefreshCw } from 'lucide-react'
 import InvestmentDashboard from './Dashboard'
 import InvestmentForm from './InvestmentForm'
-import { deleteInvestment } from '@/app/actions/investments'
+import SellForm from './SellForm'
+import { deleteInvestment, sellInvestment } from '@/app/actions/investments'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
 export default function MainView({ investments }) {
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [sellingInvestment, setSellingInvestment] = useState(null)
     const [prices, setPrices] = useState(null)
     const [loadingPrices, setLoadingPrices] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -40,6 +42,15 @@ export default function MainView({ investments }) {
         if (confirm('Bu yatırımı silmek istediğinize emin misiniz?')) {
             await deleteInvestment(id)
         }
+    }
+
+    const handleSell = (investment) => {
+        setSellingInvestment(investment)
+    }
+
+    const handleSellComplete = async (id, amount, price, date) => {
+        await sellInvestment(id, amount, price, date)
+        setSellingInvestment(null)
     }
 
     return (
@@ -98,6 +109,7 @@ export default function MainView({ investments }) {
                 <InvestmentDashboard
                     investments={investments}
                     onDelete={handleDelete}
+                    onSell={handleSell}
                     prices={prices}
                     loadingPrices={loadingPrices}
                     onRefresh={fetchPrices}
@@ -141,6 +153,53 @@ export default function MainView({ investments }) {
                                         onCancel={() => setIsModalOpen(false)}
                                         currentPrices={prices}
                                     />
+                                </DialogPanel>
+                            </TransitionChild>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Sell Investment Modal */}
+            <Transition show={!!sellingInvestment} as={React.Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setSellingInvestment(null)}>
+                    <TransitionChild
+                        as={React.Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                    </TransitionChild>
+
+                    <div className="fixed inset-0 z-10 overflow-y-auto">
+                        <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                            <TransitionChild
+                                as={React.Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                            >
+                                <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                                    <div className="mb-4">
+                                        <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                                            Yatırım Bozdur / Satış
+                                        </DialogTitle>
+                                    </div>
+                                    {sellingInvestment && (
+                                        <SellForm
+                                            investment={sellingInvestment}
+                                            currentPrice={prices && prices[sellingInvestment.type === 'fiziksel-altin' ? 'gram-altin' : sellingInvestment.type]}
+                                            onCancel={() => setSellingInvestment(null)}
+                                            onComplete={handleSellComplete}
+                                        />
+                                    )}
                                 </DialogPanel>
                             </TransitionChild>
                         </div>
