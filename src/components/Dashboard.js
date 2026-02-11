@@ -84,22 +84,40 @@ export default function InvestmentDashboard({ investments, onDelete, prices, loa
     return (
         <div className="space-y-6">
             {/* Mobile Header (Refresh is in Navbar on Desktop) */}
-            <div className="md:hidden flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div>
-                    <p className="text-sm text-gray-500">Son Güncelleme</p>
-                    <p className="font-medium text-gray-900">
-                        {prices?.updateDate ? format(new Date(prices.updateDate), 'dd MMMM HH:mm', { locale: tr }) : '-'}
-                    </p>
+            <div className="md:hidden flex flex-col space-y-3 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                    <div>
+                        <p className="text-xs text-gray-500">Son Güncelleme</p>
+                        <p className="font-medium text-gray-900">
+                            {prices?.updateDate ? format(new Date(prices.updateDate), 'dd MMMM HH:mm', { locale: tr }) : '-'}
+                        </p>
+                    </div>
+                    <button
+                        onClick={onRefresh}
+                        disabled={refreshing}
+                        className={`p-2 rounded-full hover:bg-gray-100 transition-all ${refreshing ? 'animate-spin' : ''}`}
+                    >
+                        <RefreshCw size={20} className="text-blue-600" />
+                    </button>
                 </div>
-                <button
-                    onClick={onRefresh}
-                    disabled={refreshing}
-                    className={`p-2 rounded-full hover:bg-gray-100 transition-all ${refreshing ? 'animate-spin' : ''}`}
-                >
-                    <RefreshCw size={20} className="text-blue-600" />
-                </button>
-            </div>
 
+                {prices && (
+                    <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                        <div className="bg-amber-50 rounded p-2">
+                            <div className="text-xs text-amber-700 font-medium">Gram</div>
+                            <div className="font-bold text-gray-900">{prices['gram-altin']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                        </div>
+                        <div className="bg-amber-50 rounded p-2">
+                            <div className="text-xs text-amber-800 font-medium">22 Ayar</div>
+                            <div className="font-bold text-gray-900">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2">
+                            <div className="text-xs text-gray-600 font-medium">Gümüş</div>
+                            <div className="font-bold text-gray-900">{prices['gumus']?.toLocaleString('tr-TR')} ₺</div>
+                        </div>
+                    </div>
+                )}
+            </div>
             {metrics && (
                 <>
                     {/* Cards */}

@@ -55,17 +55,31 @@ export default function MainView({ investments }) {
                         </div>
                         <div className="flex items-center space-x-4">
                             {prices && (
-                                <div className="hidden md:flex items-center space-x-2 text-sm text-gray-500">
-                                    <span>
-                                        Son Güncelleme: {prices.updateDate ? format(new Date(prices.updateDate), 'HH:mm', { locale: tr }) : '-'}
-                                    </span>
-                                    <button
-                                        onClick={fetchPrices}
-                                        disabled={refreshing}
-                                        className={`p-1 rounded-full hover:bg-gray-100 transition-all ${refreshing ? 'animate-spin' : ''}`}
-                                    >
-                                        <RefreshCw size={16} className="text-blue-600" />
-                                    </button>
+                                <div className="hidden md:flex items-center space-x-4 text-sm text-gray-700 bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">
+                                    <div className="flex space-x-3">
+                                        <span className="font-medium text-amber-600">
+                                            Gr: <span className="text-gray-900">{prices['gram-altin']?.toLocaleString('tr-TR')} ₺</span>
+                                        </span>
+                                        <span className="font-medium text-amber-700">
+                                            22K: <span className="text-gray-900">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR')} ₺</span>
+                                        </span>
+                                        <span className="font-medium text-gray-500">
+                                            Ag: <span className="text-gray-900">{prices['gumus']?.toLocaleString('tr-TR')} ₺</span>
+                                        </span>
+                                    </div>
+                                    <div className="h-4 w-px bg-gray-300 mx-2"></div>
+                                    <div className="flex items-center text-xs text-gray-500">
+                                        <span className="mr-2">
+                                            {prices.updateDate ? format(new Date(prices.updateDate), 'HH:mm', { locale: tr }) : '-'}
+                                        </span>
+                                        <button
+                                            onClick={fetchPrices}
+                                            disabled={refreshing}
+                                            className={`p-1 rounded-full hover:bg-gray-200 transition-all ${refreshing ? 'animate-spin' : ''}`}
+                                        >
+                                            <RefreshCw size={14} className="text-blue-600" />
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                             <button
