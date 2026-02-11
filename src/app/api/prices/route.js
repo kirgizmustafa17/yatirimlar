@@ -29,8 +29,7 @@ export async function GET() {
             matches.push(match[1]); // match[1] is the content inside the tag
         }
 
-        // Indices (User provided 5th, 8th, 9th, 12th, 93rd, 96th elements... which are 1-based?)
-        // User said:
+        // Indices
         // 5. element -> Gold Price. (Index 4)
         // 8. element -> Gold Time. (Index 7)
         // 9. element -> 22k Bracelet Price (Index 8)
@@ -61,21 +60,18 @@ export async function GET() {
         };
 
         // Parse time if valid (e.g. "17:01")
-        // Bigpara only gives HH:mm, so we assume today
         if (goldTime && goldTime.includes(':')) {
             try {
                 const [hours, minutes] = goldTime.split(':');
                 const now = new Date();
 
                 // Construct a date string in TRT (UTC+3)
-                // Format: YYYY-MM-DDTHH:mm:00+03:00
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const day = String(now.getDate()).padStart(2, '0');
 
                 const trTime = `${year}-${month}-${day}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00+03:00`;
 
-                // Parse this string - javascript correctly handles the offset
                 data.updateDate = new Date(trTime).toISOString();
             } catch (e) {
                 console.error('Time parsing error', e);
