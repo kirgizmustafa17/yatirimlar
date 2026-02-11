@@ -228,7 +228,7 @@ export default function InvestmentDashboard({ investments, onDelete, prices, loa
                                             <th className="px-6 py-3">Tür</th>
                                             <th className="px-6 py-3">Miktar</th>
                                             <th className="px-6 py-3">Alış (Birim)</th>
-                                            <th className="px-6 py-3">Güncel</th>
+                                            <th className="px-6 py-3">Maliyet</th>
                                             <th className="px-6 py-3">Kar/Zarar</th>
                                             <th className="px-6 py-3">Tarih</th>
                                             <th className="px-6 py-3"></th>
@@ -246,8 +246,8 @@ export default function InvestmentDashboard({ investments, onDelete, prices, loa
                                                 <td className="px-6 py-4">
                                                     {inv.purchase_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    {inv.currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                                                <td className="px-6 py-4 font-semibold text-gray-700">
+                                                    {(inv.amount * inv.purchase_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                                                 </td>
                                                 <td className={`px-6 py-4 font-bold ${inv.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                     %{inv.profitPercent.toFixed(1)}
