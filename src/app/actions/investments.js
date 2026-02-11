@@ -7,7 +7,6 @@ export async function getInvestments() {
     const { data, error } = await supabase
         .from('investments')
         .select('*')
-        .eq('status', 'active') // Filter by active investments
         .order('purchase_date', { ascending: false })
 
     if (error) {

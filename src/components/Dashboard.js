@@ -5,34 +5,43 @@ import { PieChart, Pie, Cell, ResponsiveContainer, RechartsTooltip, Legend } fro
 import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
+import { Trash2 } from 'lucide-react' // Assuming Trash2 is needed for delete button
 
 const COLORS = ['#FFD700', '#B8860B', '#E5E4E2', '#DAA520'] // Gold, 22k, Silver, Physical Gold (Darker Gold)
 
 export default function InvestmentDashboard({ investments, onDelete, onSell, prices, loadingPrices, onRefresh, refreshing }) {
 
+    // State for tabs
+    const [activeTab, setActiveTab] = React.useState('active') // 'active' or 'sold'
+
     // Calculations
     const calculateMetrics = () => {
-        if (!prices || !investments) return null
+        if (!investments || !prices) return null
 
-        let totalInvested = 0
-        let totalCurrentValue = 0
+        // Split investments
+        const activeInvestments = investments.filter(inv => inv.status !== 'sold')
+        const soldInvestments = investments.filter(inv => inv.status === 'sold')
+
+        // Metrics for Active Investments
+        let totalValue = 0
+        let totalCost = 0
         let totalGramGold = 0
         let totalBracelet22k = 0
         let totalSilverGrams = 0
         let totalPhysicalGold = 0
 
-        const enrichedInvestments = investments.map(inv => {
+        const enrichedActiveInvestments = activeInvestments.map(inv => {
             // Map physical gold to gram gold price
             const priceKey = inv.type === 'fiziksel-altin' ? 'gram-altin' : inv.type
             const currentPrice = prices[priceKey] || 0
 
-            const cost = inv.amount * inv.purchase_price
-            const value = inv.amount * currentPrice
-            const profit = value - cost
+            const currentValue = Number(inv.amount) * currentPrice
+            const cost = Number(inv.amount) * Number(inv.purchase_price)
+            const profit = currentValue - cost
             const profitPercent = cost > 0 ? (profit / cost) * 100 : 0
 
-            totalInvested += cost
-            totalCurrentValue += value
+            totalValue += currentValue
+            totalCost += cost
 
             // Separate quantities
             if (inv.type === 'gram-altin') {
@@ -45,36 +54,48 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                 totalPhysicalGold += Number(inv.amount)
             }
 
-            return { ...inv, currentPrice, value, profit, profitPercent, displayType: inv.type }
+            return { ...inv, currentValue, cost, profit, profitPercent, currentPrice }
         })
 
-        const totalProfit = totalCurrentValue - totalInvested
-        const totalProfitPercent = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0
+        const totalProfit = totalValue - totalCost
+        const totalProfitPercent = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0
 
-        // Chart Data
+        // Metrics for Sold Investments (Realized Profit)
+        let totalRealizedProfit = 0
+        const enrichedSoldInvestments = soldInvestments.map(inv => {
+            const sellingPrice = Number(inv.selling_price)
+            const cost = Number(inv.amount) * Number(inv.purchase_price)
+            const saleValue = Number(inv.amount) * sellingPrice
+            const profit = saleValue - cost
+            const profitPercent = cost > 0 ? (profit / cost) * 100 : 0
+
+            totalRealizedProfit += profit
+
+            return { ...inv, saleValue, cost, profit, profitPercent }
+        })
+
+        // Chart Data (Active Only)
         const chartData = [
-            { name: 'Gram Altın', value: enrolledValue(enrichedInvestments, 'gram-altin') },
-            { name: '22 Ayar Bilezik', value: enrolledValue(enrichedInvestments, '22-ayar-bilezik') },
-            { name: 'Gümüş', value: enrolledValue(enrichedInvestments, 'gumus') },
-            { name: 'Fiziksel Altın', value: enrolledValue(enrichedInvestments, 'fiziksel-altin') },
-        ].filter(d => d.value > 0)
+            { name: 'Altın', value: totalGramGold * (prices['gram-altin'] || 0) },
+            { name: '22 Ayar', value: totalBracelet22k * (prices['22-ayar-bilezik'] || 0) },
+            { name: 'Gümüş', value: totalSilverGrams * (prices['gumus'] || 0) },
+            { name: 'Fiziksel', value: totalPhysicalGold * (prices['gram-altin'] || 0) },
+        ].filter(item => item.value > 0)
 
         return {
-            totalInvested,
-            totalCurrentValue,
+            totalValue,
+            totalCost,
             totalProfit,
             totalProfitPercent,
             totalGramGold,
             totalBracelet22k,
             totalSilverGrams,
             totalPhysicalGold,
-            enrichedInvestments,
+            totalRealizedProfit,
+            enrichedActiveInvestments,
+            enrichedSoldInvestments,
             chartData
         }
-    }
-
-    const enrolledValue = (items, type) => {
-        return items.filter(i => i.type === type).reduce((sum, i) => sum + i.value, 0)
     }
 
     const metrics = calculateMetrics()
@@ -118,7 +139,30 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                     </div>
                 )}
             </div>
-            {metrics && (
+
+            {/* Tabs */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+                <button
+                    onClick={() => setActiveTab('active')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'active'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Aktif Yatırımlar
+                </button>
+                <button
+                    onClick={() => setActiveTab('sold')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'sold'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Geçmiş / Bozdurulanlar
+                </button>
+            </div>
+
+            {metrics && activeTab === 'active' && (
                 <>
                     {/* Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -130,12 +174,14 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                                 </div>
                                 <h3 className="text-gray-600 font-medium">Toplam Varlık</h3>
                             </div>
-                            <p className="text-3xl font-bold text-gray-900">
-                                {metrics.totalCurrentValue.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                                Yatırılan: {metrics.totalInvested.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-                            </p>
+                            <div className="mt-4">
+                                <div className="text-3xl font-bold text-gray-900">
+                                    {metrics.totalValue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </div>
+                                <div className="text-sm text-gray-500 mt-1">
+                                    Maliyet: {metrics.totalCost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </div>
+                            </div>
                         </div>
 
                         {/* Profit/Loss */}
@@ -149,13 +195,14 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                                 </div>
                                 <h3 className="text-gray-600 font-medium">Toplam Kar/Zarar</h3>
                             </div>
-                            <p className={`text-3xl font-bold ${metrics.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {metrics.totalProfit >= 0 ? '+' : ''}
-                                {metrics.totalProfit.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-                            </p>
-                            <p className={`text-sm font-medium mt-1 ${metrics.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                %{metrics.totalProfitPercent.toFixed(2)}
-                            </p>
+                            <div className="mt-4">
+                                <div className={`text-3xl font-bold ${metrics.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {metrics.totalProfit > 0 ? '+' : ''}{metrics.totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </div>
+                                <div className={`text-sm font-medium mt-1 ${metrics.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    %{metrics.totalProfitPercent.toFixed(2)}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Holdings */}
@@ -209,7 +256,7 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <RechartsTooltip formatter={(value) => value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} />
+                                        <RechartsTooltip formatter={(value) => `${value.toLocaleString('tr-TR')} ₺`} />
                                         <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -235,7 +282,7 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {metrics.enrichedInvestments.map((inv) => (
+                                        {metrics.enrichedActiveInvestments.map((inv) => (
                                             <tr key={inv.id} className="bg-white border-b hover:bg-gray-50">
                                                 <td className="px-6 py-4 font-medium text-gray-900">
                                                     {inv.type === 'gram-altin' ? 'Gram Altın' :
@@ -247,7 +294,7 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                                                     {inv.purchase_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                                                 </td>
                                                 <td className="px-6 py-4 font-semibold text-gray-700">
-                                                    {(inv.amount * inv.purchase_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                                                    {inv.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                                                 </td>
                                                 <td className={`px-6 py-4 font-bold ${inv.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                     %{inv.profitPercent.toFixed(1)}
@@ -275,10 +322,10 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                                                 </td>
                                             </tr>
                                         ))}
-                                        {metrics.enrichedInvestments.length === 0 && (
+                                        {metrics.enrichedActiveInvestments.length === 0 && (
                                             <tr>
                                                 <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                                                    Henüz yatırım kaydı bulunmuyor.
+                                                    Henüz yatırımınız bulunmuyor.
                                                 </td>
                                             </tr>
                                         )}
@@ -288,6 +335,77 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                         </div>
                     </div>
                 </>
+            )}
+
+            {metrics && activeTab === 'sold' && (
+                <div className="space-y-6">
+                    {/* Sold Summary */}
+                    <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm">
+                        <div className="flex items-center space-x-3 mb-2">
+                            <div className="p-2 bg-green-100 rounded-lg">
+                                <DollarSign className="text-green-600" size={24} />
+                            </div>
+                            <h3 className="text-gray-600 font-medium">Toplam Gerçekleşen Kar</h3>
+                        </div>
+                        <div className="mt-4">
+                            <div className="text-3xl font-bold text-green-600">
+                                +{metrics.totalRealizedProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sold List */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="p-6 border-b border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900">Bozdurulan Yatırımlar</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3">Tür</th>
+                                        <th className="px-6 py-3">Miktar</th>
+                                        <th className="px-6 py-3">Alış Fiyatı</th>
+                                        <th className="px-6 py-3">Satış Fiyatı</th>
+                                        <th className="px-6 py-3">Gerçekleşen Kar</th>
+                                        <th className="px-6 py-3">Satış Tarihi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {metrics.enrichedSoldInvestments.map((inv) => (
+                                        <tr key={inv.id} className="bg-white border-b hover:bg-gray-50">
+                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                {inv.type === 'gram-altin' ? 'Gram Altın' :
+                                                    inv.type === 'gumus' ? 'Gümüş' :
+                                                        inv.type === 'fiziksel-altin' ? 'Fiziksel Altın' : '22 Ayar Bilezik'}
+                                            </td>
+                                            <td className="px-6 py-4">{inv.amount} g</td>
+                                            <td className="px-6 py-4">
+                                                {inv.purchase_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {Number(inv.selling_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                                            </td>
+                                            <td className={`px-6 py-4 font-bold ${inv.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {inv.profit > 0 ? '+' : ''}{inv.profit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-500">
+                                                {inv.selling_date ? format(new Date(inv.selling_date), 'dd.MM.yyyy HH:mm') : '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {metrics.enrichedSoldInvestments.length === 0 && (
+                                        <tr>
+                                            <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                                                Henüz bozdurulan yatırım bulunmuyor.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     )
