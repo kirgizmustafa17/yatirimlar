@@ -17,7 +17,8 @@ export default function CompositionChart({ investments, prices }) {
     const dataMap = {};
     investments.forEach(inv => {
         const currentPrice = prices[inv.type] || 0;
-        const value = inv.amount * currentPrice;
+        const amount = parseFloat(inv.amount);
+        const value = amount * currentPrice;
 
         if (dataMap[inv.type]) {
             dataMap[inv.type] += value;
