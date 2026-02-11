@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, RechartsTooltip, Legend } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
 import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
@@ -145,8 +145,8 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                 <button
                     onClick={() => setActiveTab('active')}
                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'active'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     Aktif Yatırımlar
@@ -154,8 +154,8 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                 <button
                     onClick={() => setActiveTab('sold')}
                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'sold'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     Geçmiş / Bozdurulanlar
