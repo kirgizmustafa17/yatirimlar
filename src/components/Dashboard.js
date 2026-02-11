@@ -1,41 +1,14 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
-import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown, Plus } from 'lucide-react'
+import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
-const COLORS = ['#FFD700', '#C0C0C0', '#B8860B'] // Gold, Silver, Bronze/DarkGold
+const COLORS = ['#FFD700', '#B8860B', '#E5E4E2', '#DAA520'] // Gold, 22k, Silver, Physical Gold (Darker Gold)
 
-export default function InvestmentDashboard({ investments, onDelete }) {
-    const [prices, setPrices] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [refreshing, setRefreshing] = useState(false)
-    const [error, setError] = useState(null)
-
-    const fetchPrices = async () => {
-        try {
-            setRefreshing(true)
-            const res = await fetch('/api/prices')
-            if (!res.ok) throw new Error('Fiyatlar alınamadı')
-            const data = await res.json()
-            setPrices(data)
-            setError(null)
-        } catch (err) {
-            console.error(err)
-            setError('Fiyatlar güncellenemedi')
-        } finally {
-            setLoading(false)
-            setRefreshing(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchPrices()
-        const interval = setInterval(fetchPrices, 60000) // 1 min refresh
-        return () => clearInterval(interval)
-    }, [])
+export default function InvestmentDashboard({ investments, onDelete, prices, loadingPrices, onRefresh, refreshing }) {
 
     // Calculations
     const calculateMetrics = () => {
@@ -43,11 +16,16 @@ export default function InvestmentDashboard({ investments, onDelete }) {
 
         let totalInvested = 0
         let totalCurrentValue = 0
-        let totalGoldGrams = 0
+        let totalGramGold = 0
+        let totalBracelet22k = 0
         let totalSilverGrams = 0
+        let totalPhysicalGold = 0
 
         const enrichedInvestments = investments.map(inv => {
-            const currentPrice = prices[inv.type] || 0
+            // Map physical gold to gram gold price
+            const priceKey = inv.type === 'fiziksel-altin' ? 'gram-altin' : inv.type
+            const currentPrice = prices[priceKey] || 0
+
             const cost = inv.amount * inv.purchase_price
             const value = inv.amount * currentPrice
             const profit = value - cost
@@ -56,13 +34,18 @@ export default function InvestmentDashboard({ investments, onDelete }) {
             totalInvested += cost
             totalCurrentValue += value
 
-            if (inv.type === 'gram-altin' || inv.type === '22-ayar-bilezik') {
-                totalGoldGrams += Number(inv.amount)
+            // Separate quantities
+            if (inv.type === 'gram-altin') {
+                totalGramGold += Number(inv.amount)
+            } else if (inv.type === '22-ayar-bilezik') {
+                totalBracelet22k += Number(inv.amount)
             } else if (inv.type === 'gumus') {
                 totalSilverGrams += Number(inv.amount)
+            } else if (inv.type === 'fiziksel-altin') {
+                totalPhysicalGold += Number(inv.amount)
             }
 
-            return { ...inv, currentPrice, value, profit, profitPercent }
+            return { ...inv, currentPrice, value, profit, profitPercent, displayType: inv.type }
         })
 
         const totalProfit = totalCurrentValue - totalInvested
@@ -71,8 +54,9 @@ export default function InvestmentDashboard({ investments, onDelete }) {
         // Chart Data
         const chartData = [
             { name: 'Gram Altın', value: enrolledValue(enrichedInvestments, 'gram-altin') },
-            { name: 'Gümüş', value: enrolledValue(enrichedInvestments, 'gumus') },
             { name: '22 Ayar Bilezik', value: enrolledValue(enrichedInvestments, '22-ayar-bilezik') },
+            { name: 'Gümüş', value: enrolledValue(enrichedInvestments, 'gumus') },
+            { name: 'Fiziksel Altın', value: enrolledValue(enrichedInvestments, 'fiziksel-altin') },
         ].filter(d => d.value > 0)
 
         return {
@@ -80,8 +64,10 @@ export default function InvestmentDashboard({ investments, onDelete }) {
             totalCurrentValue,
             totalProfit,
             totalProfitPercent,
-            totalGoldGrams,
+            totalGramGold,
+            totalBracelet22k,
             totalSilverGrams,
+            totalPhysicalGold,
             enrichedInvestments,
             chartData
         }
@@ -93,12 +79,12 @@ export default function InvestmentDashboard({ investments, onDelete }) {
 
     const metrics = calculateMetrics()
 
-    if (loading && !prices) return <div className="p-8 text-center text-gray-500">Yükleniyor...</div>
+    if (loadingPrices && !prices) return <div className="p-8 text-center text-gray-500">Yükleniyor...</div>
 
     return (
         <div className="space-y-6">
-            {/* Header & Refresh */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            {/* Mobile Header (Refresh is in Navbar on Desktop) */}
+            <div className="md:hidden flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <div>
                     <p className="text-sm text-gray-500">Son Güncelleme</p>
                     <p className="font-medium text-gray-900">
@@ -106,7 +92,7 @@ export default function InvestmentDashboard({ investments, onDelete }) {
                     </p>
                 </div>
                 <button
-                    onClick={fetchPrices}
+                    onClick={onRefresh}
                     disabled={refreshing}
                     className={`p-2 rounded-full hover:bg-gray-100 transition-all ${refreshing ? 'animate-spin' : ''}`}
                 >
@@ -164,8 +150,18 @@ export default function InvestmentDashboard({ investments, onDelete }) {
                             </div>
                             <div className="space-y-1">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">Altın:</span>
-                                    <span className="font-bold text-gray-900">{metrics.totalGoldGrams.toFixed(2)} g</span>
+                                    <span className="text-gray-600">Gram Altın:</span>
+                                    <span className="font-bold text-gray-900">{metrics.totalGramGold.toFixed(2)} g</span>
+                                </div>
+                                {metrics.totalPhysicalGold > 0 && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Fiziksel Altın:</span>
+                                        <span className="font-bold text-gray-900">{metrics.totalPhysicalGold.toFixed(2)} g</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600">22 Ayar:</span>
+                                    <span className="font-bold text-gray-900">{metrics.totalBracelet22k.toFixed(2)} g</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Gümüş:</span>
@@ -216,7 +212,7 @@ export default function InvestmentDashboard({ investments, onDelete }) {
                                             <th className="px-6 py-3">Tür</th>
                                             <th className="px-6 py-3">Miktar</th>
                                             <th className="px-6 py-3">Alış (Birim)</th>
-                                            <th className="px-6 py-3">Değer</th>
+                                            <th className="px-6 py-3">Güncel</th>
                                             <th className="px-6 py-3">Kar/Zarar</th>
                                             <th className="px-6 py-3">Tarih</th>
                                             <th className="px-6 py-3"></th>
@@ -227,14 +223,15 @@ export default function InvestmentDashboard({ investments, onDelete }) {
                                             <tr key={inv.id} className="bg-white border-b hover:bg-gray-50">
                                                 <td className="px-6 py-4 font-medium text-gray-900">
                                                     {inv.type === 'gram-altin' ? 'Gram Altın' :
-                                                        inv.type === 'gumus' ? 'Gümüş' : '22 Ayar Bilezik'}
+                                                        inv.type === 'gumus' ? 'Gümüş' :
+                                                            inv.type === 'fiziksel-altin' ? 'Fiziksel Altın' : '22 Ayar Bilezik'}
                                                 </td>
                                                 <td className="px-6 py-4">{inv.amount} g</td>
                                                 <td className="px-6 py-4">
                                                     {inv.purchase_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                                                 </td>
-                                                <td className="px-6 py-4 font-semibold">
-                                                    {inv.value.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                                                <td className="px-6 py-4">
+                                                    {inv.currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
                                                 </td>
                                                 <td className={`px-6 py-4 font-bold ${inv.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                     %{inv.profitPercent.toFixed(1)}

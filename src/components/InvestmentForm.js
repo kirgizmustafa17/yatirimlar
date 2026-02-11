@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import { addInvestment } from '@/app/actions/investments'
 
-export default function InvestmentForm({ onCancel }) {
+export default function InvestmentForm({ onCancel, currentPrices }) {
     const [loading, setLoading] = useState(false)
+    const [selectedType, setSelectedType] = useState('gram-altin')
 
     async function handleSubmit(event) {
         event.preventDefault()
@@ -23,6 +24,14 @@ export default function InvestmentForm({ onCancel }) {
         }
     }
 
+    const getCurrentPriceDetails = () => {
+        if (!currentPrices) return null
+        const priceKey = selectedType === 'fiziksel-altin' ? 'gram-altin' : selectedType
+        return currentPrices[priceKey]
+    }
+
+    const currentPrice = getCurrentPriceDetails()
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -30,9 +39,12 @@ export default function InvestmentForm({ onCancel }) {
                 <select
                     name="type"
                     required
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
                     className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 border"
                 >
                     <option value="gram-altin">Gram Altın (24 Ayar)</option>
+                    <option value="fiziksel-altin">Fiziksel Altın (24 Ayar - Elden)</option>
                     <option value="22-ayar-bilezik">22 Ayar Bilezik</option>
                     <option value="gumus">Gümüş</option>
                 </select>
@@ -60,6 +72,11 @@ export default function InvestmentForm({ onCancel }) {
                         placeholder="Örn: 2450.00"
                         className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 border"
                     />
+                    {currentPrice && (
+                        <p className="text-xs text-blue-600 mt-1">
+                            Güncel Fiyat: {currentPrice.toLocaleString('tr-TR')} TL
+                        </p>
+                    )}
                 </div>
             </div>
 
