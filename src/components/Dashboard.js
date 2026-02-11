@@ -153,12 +153,10 @@ export default function InvestmentDashboard({ investments, onDelete, prices, loa
                                     <span className="text-gray-600">Gram Altın:</span>
                                     <span className="font-bold text-gray-900">{metrics.totalGramGold.toFixed(2)} g</span>
                                 </div>
-                                {metrics.totalPhysicalGold > 0 && (
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-600">Fiziksel Altın:</span>
-                                        <span className="font-bold text-gray-900">{metrics.totalPhysicalGold.toFixed(2)} g</span>
-                                    </div>
-                                )}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600">Fiziksel Altın:</span>
+                                    <span className="font-bold text-gray-900">{metrics.totalPhysicalGold.toFixed(2)} g</span>
+                                </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">22 Ayar:</span>
                                     <span className="font-bold text-gray-900">{metrics.totalBracelet22k.toFixed(2)} g</span>
