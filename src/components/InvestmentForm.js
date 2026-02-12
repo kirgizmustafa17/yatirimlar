@@ -35,13 +35,13 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Yatırım Türü</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Yatırım Türü</label>
                 <select
                     name="type"
                     required
                     value={selectedType}
                     onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 border"
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border"
                 >
                     <option value="gram-altin">Gram Altın (24 Ayar)</option>
                     <option value="fiziksel-altin">Fiziksel Altın (24 Ayar - Elden)</option>
@@ -52,28 +52,28 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Miktar (Gram)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Miktar (Gram)</label>
                     <input
                         type="number"
                         name="amount"
                         step="0.01"
                         required
                         placeholder="Örn: 10.5"
-                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 border"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border placeholder-gray-400 dark:placeholder-gray-500"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Alış Birim Fiyatı (TL)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alış Birim Fiyatı (TL)</label>
                     <input
                         type="number"
                         name="purchase_price"
                         step="0.01"
                         required
                         placeholder="Örn: 2450.00"
-                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 border"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border placeholder-gray-400 dark:placeholder-gray-500"
                     />
                     {currentPrice && (
-                        <p className="text-xs text-blue-600 mt-1">
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                             Güncel Fiyat: {currentPrice.toLocaleString('tr-TR')} TL
                         </p>
                     )}
@@ -81,13 +81,13 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alış Tarihi</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alış Tarihi</label>
                 <input
                     type="datetime-local"
                     name="purchase_date"
                     required
                     defaultValue={new Date().toISOString().slice(0, 16)}
-                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 border"
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border"
                 />
             </div>
 
@@ -95,7 +95,7 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                     İptal
                 </button>
