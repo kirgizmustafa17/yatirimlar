@@ -3,40 +3,38 @@
 import { supabase } from '@/lib/supabase'
 import { revalidatePath } from 'next/cache'
 
-export async function getInvestments() {
+export async function getTransactions() {
     const { data, error } = await supabase
-        .from('investments')
+        .from('transactions')
         .select('*')
-        .order('purchase_date', { ascending: false })
+        .order('date', { ascending: false })
 
     if (error) {
-        console.error('Error fetching investments:', error)
+        console.error('Error fetching transactions:', error)
         return []
     }
 
     return data
 }
 
-export async function addInvestment(formData) {
+export async function addBuyTransaction(formData) {
     const type = formData.get('type')
     const amount = parseFloat(formData.get('amount'))
-    const purchase_price = parseFloat(formData.get('purchase_price'))
-    const purchase_date = formData.get('purchase_date')
+    const unit_price = parseFloat(formData.get('unit_price'))
+    const date = formData.get('date')
 
     const { error } = await supabase
-        .from('investments')
-        .insert([
-            {
-                type,
-                amount,
-                purchase_price,
-                purchase_date: new Date(purchase_date).toISOString(),
-                status: 'active'
-            },
-        ])
+        .from('transactions')
+        .insert([{
+            type,
+            transaction_type: 'buy',
+            amount,
+            unit_price,
+            date: new Date(date).toISOString()
+        }])
 
     if (error) {
-        console.error('Error adding investment:', error)
+        console.error('Error adding buy transaction:', error)
         return { success: false, error: error.message }
     }
 
@@ -44,77 +42,62 @@ export async function addInvestment(formData) {
     return { success: true }
 }
 
-export async function sellInvestment(id, sellAmount, sellingPrice, sellingDate) {
-    const { data: investment, error: fetchError } = await supabase
-        .from('investments')
+export async function addSellTransaction(formData) {
+    const type = formData.get('type')
+    const amount = parseFloat(formData.get('amount'))
+    const unit_price = parseFloat(formData.get('unit_price'))
+    const date = formData.get('date')
+
+    // Validate: satılacak miktar mevcut miktarı aşamaz
+    const { data: allTransactions, error: fetchError } = await supabase
+        .from('transactions')
         .select('*')
-        .eq('id', id)
-        .single()
+        .eq('type', type)
 
-    if (fetchError || !investment) {
-        return { success: false, error: 'Investment not found' }
+    if (fetchError) {
+        return { success: false, error: fetchError.message }
     }
 
-    const currentAmount = parseFloat(investment.amount)
-    const sellAmountFloat = parseFloat(sellAmount)
-    const sellingPriceFloat = parseFloat(sellingPrice)
+    const totalBought = allTransactions
+        .filter(t => t.transaction_type === 'buy')
+        .reduce((sum, t) => sum + Number(t.amount), 0)
 
-    if (sellAmountFloat > currentAmount) {
-        return { success: false, error: 'Satılacak miktar mevcut miktardan fazla olamaz.' }
+    const totalSold = allTransactions
+        .filter(t => t.transaction_type === 'sell')
+        .reduce((sum, t) => sum + Number(t.amount), 0)
+
+    const currentHolding = totalBought - totalSold
+
+    if (amount > currentHolding + 0.001) {
+        return { success: false, error: `Satılacak miktar mevcut miktardan (${currentHolding.toFixed(2)}g) fazla olamaz.` }
     }
 
-    // If fully sold
-    if (Math.abs(currentAmount - sellAmountFloat) < 0.001) {
-        const { error } = await supabase
-            .from('investments')
-            .update({
-                status: 'sold',
-                selling_price: sellingPriceFloat,
-                selling_date: new Date(sellingDate).toISOString()
-            })
-            .eq('id', id)
+    const { error } = await supabase
+        .from('transactions')
+        .insert([{
+            type,
+            transaction_type: 'sell',
+            amount,
+            unit_price,
+            date: new Date(date).toISOString()
+        }])
 
-        if (error) return { success: false, error: error.message }
-    } else {
-        // Partial Sale: Update original (remain active) and create new (sold)
-        const remainingAmount = currentAmount - sellAmountFloat
-
-        // 1. Update original to remaining amount
-        const { error: updateError } = await supabase
-            .from('investments')
-            .update({ amount: remainingAmount })
-            .eq('id', id)
-
-        if (updateError) return { success: false, error: updateError.message }
-
-        // 2. Insert new sold record
-        const { error: insertError } = await supabase
-            .from('investments')
-            .insert([{
-                type: investment.type,
-                amount: sellAmountFloat,
-                purchase_price: investment.purchase_price,
-                purchase_date: investment.purchase_date,
-                selling_price: sellingPriceFloat,
-                selling_date: new Date(sellingDate).toISOString(),
-                status: 'sold'
-            }])
-
-        if (insertError) return { success: false, error: insertError.message }
+    if (error) {
+        return { success: false, error: error.message }
     }
 
     revalidatePath('/')
     return { success: true }
 }
 
-export async function deleteInvestment(id) {
+export async function deleteTransaction(id) {
     const { error } = await supabase
-        .from('investments')
+        .from('transactions')
         .delete()
         .match({ id })
 
     if (error) {
-        console.error('Error deleting investment:', error)
+        console.error('Error deleting transaction:', error)
         return { success: false, error: error.message }
     }
 

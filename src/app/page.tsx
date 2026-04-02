@@ -1,11 +1,11 @@
 
-import { getInvestments } from '@/app/actions/investments'
+import { getTransactions } from '@/app/actions/investments'
 import MainView from '@/components/MainView'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const investments = await getInvestments()
+  const transactions = await getTransactions()
 
-  return <MainView investments={investments} />
+  return <MainView transactions={transactions} />
 }

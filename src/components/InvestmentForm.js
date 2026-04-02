@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { addInvestment } from '@/app/actions/investments'
+import { addBuyTransaction } from '@/app/actions/investments'
 
 export default function InvestmentForm({ onCancel, currentPrices }) {
     const [loading, setLoading] = useState(false)
@@ -14,8 +14,12 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
         const formData = new FormData(event.target)
 
         try {
-            await addInvestment(formData)
-            onCancel() // Close modal/form
+            const result = await addBuyTransaction(formData)
+            if (result.success) {
+                onCancel()
+            } else {
+                alert(result.error || 'Hata oluştu')
+            }
         } catch (error) {
             console.error(error)
             alert('Hata oluştu')
@@ -24,13 +28,13 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
         }
     }
 
-    const getCurrentPriceDetails = () => {
+    const getCurrentPrice = () => {
         if (!currentPrices) return null
         const priceKey = selectedType === 'fiziksel-altin' ? 'gram-altin' : selectedType
         return currentPrices[priceKey]
     }
 
-    const currentPrice = getCurrentPriceDetails()
+    const currentPrice = getCurrentPrice()
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +70,7 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alış Birim Fiyatı (TL)</label>
                     <input
                         type="number"
-                        name="purchase_price"
+                        name="unit_price"
                         step="0.01"
                         required
                         placeholder="Örn: 2450.00"
@@ -84,7 +88,7 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alış Tarihi</label>
                 <input
                     type="datetime-local"
-                    name="purchase_date"
+                    name="date"
                     required
                     defaultValue={new Date().toISOString().slice(0, 16)}
                     className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border"
@@ -104,7 +108,7 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
                     disabled={loading}
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
                 >
-                    {loading ? 'Kaydediliyor...' : <><Plus size={16} className="mr-2" /> Ekle</>}
+                    {loading ? 'Kaydediliyor...' : <><Plus size={16} className="mr-2" /> Alış Ekle</>}
                 </button>
             </div>
         </form>

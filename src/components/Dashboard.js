@@ -2,99 +2,113 @@
 
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
-import { ArrowUpIcon, ArrowDownIcon, RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import { RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign, ArrowUpIcon, ArrowDownIcon, Trash2, ShoppingCart, Tag } from 'lucide-react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
-import { Trash2 } from 'lucide-react'
 
-const COLORS = ['#FFD700', '#B8860B', '#E5E4E2', '#DAA520'] // Gold, 22k, Silver, Physical Gold
+const COLORS = ['#FFD700', '#B8860B', '#E5E4E2', '#DAA520']
 
-export default function InvestmentDashboard({ investments, onDelete, onSell, prices, loadingPrices, onRefresh, refreshing }) {
+const TYPE_LABELS = {
+    'gram-altin': 'Gram Altın',
+    'fiziksel-altin': 'Fiziksel Altın',
+    '22-ayar-bilezik': '22 Ayar Bilezik',
+    'gumus': 'Gümüş'
+}
 
-    // State for tabs
-    const [activeTab, setActiveTab] = React.useState('active') // 'active' or 'sold'
+export default function InvestmentDashboard({ transactions, onDelete, prices, loadingPrices, onRefresh, refreshing }) {
 
-    // Calculations
+    const [activeTab, setActiveTab] = React.useState('portfolio')
+
     const calculateMetrics = () => {
-        if (!investments || !prices) return null
+        if (!transactions || !prices) return null
 
-        // Split investments
-        const activeInvestments = investments.filter(inv => inv.status !== 'sold')
-        const soldInvestments = investments.filter(inv => inv.status === 'sold')
+        const buys = transactions.filter(t => t.transaction_type === 'buy')
+        const sells = transactions.filter(t => t.transaction_type === 'sell')
 
-        // Metrics for Active Investments
+        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik', 'gumus']
+        const typeMetrics = {}
+
         let totalValue = 0
-        let totalCost = 0
-        let totalGramGold = 0
-        let totalBracelet22k = 0
-        let totalSilverGrams = 0
-        let totalPhysicalGold = 0
+        let totalCostBasis = 0
+        let totalRealizedPL = 0
 
-        const enrichedActiveInvestments = activeInvestments.map(inv => {
-            // Map physical gold to gram gold price
-            const priceKey = inv.type === 'fiziksel-altin' ? 'gram-altin' : inv.type
+        types.forEach(type => {
+            const typeBuys = buys.filter(t => t.type === type)
+            const typeSells = sells.filter(t => t.type === type)
+
+            const totalBought = typeBuys.reduce((sum, t) => sum + Number(t.amount), 0)
+            const totalSold = typeSells.reduce((sum, t) => sum + Number(t.amount), 0)
+            const currentHolding = totalBought - totalSold
+
+            // Weighted Average Cost = Total Buy Cost / Total Buy Amount
+            const totalBuyCost = typeBuys.reduce((sum, t) => sum + Number(t.amount) * Number(t.unit_price), 0)
+            const wac = totalBought > 0 ? totalBuyCost / totalBought : 0
+
+            const priceKey = type === 'fiziksel-altin' ? 'gram-altin' : type
             const currentPrice = prices[priceKey] || 0
 
-            const currentValue = Number(inv.amount) * currentPrice
-            const cost = Number(inv.amount) * Number(inv.purchase_price)
-            const profit = currentValue - cost
-            const profitPercent = cost > 0 ? (profit / cost) * 100 : 0
+            const currentValue = currentHolding * currentPrice
+            const costBasis = currentHolding * wac
+            const unrealizedPL = currentValue - costBasis
+            const unrealizedPLPercent = costBasis > 0 ? (unrealizedPL / costBasis) * 100 : 0
+
+            // Realized P/L: each sell's profit = (sell_price - WAC) * amount
+            const realizedPL = typeSells.reduce((sum, t) => {
+                return sum + (Number(t.unit_price) - wac) * Number(t.amount)
+            }, 0)
+
+            // Enrich individual sell transactions with profit data
+            const enrichedSells = typeSells.map(t => {
+                const profit = (Number(t.unit_price) - wac) * Number(t.amount)
+                const profitPercent = wac > 0 ? ((Number(t.unit_price) - wac) / wac) * 100 : 0
+                return { ...t, wac, profit, profitPercent }
+            })
 
             totalValue += currentValue
-            totalCost += cost
+            totalCostBasis += costBasis
+            totalRealizedPL += realizedPL
 
-            // Separate quantities
-            if (inv.type === 'gram-altin') {
-                totalGramGold += Number(inv.amount)
-            } else if (inv.type === '22-ayar-bilezik') {
-                totalBracelet22k += Number(inv.amount)
-            } else if (inv.type === 'gumus') {
-                totalSilverGrams += Number(inv.amount)
-            } else if (inv.type === 'fiziksel-altin') {
-                totalPhysicalGold += Number(inv.amount)
+            typeMetrics[type] = {
+                totalBought,
+                totalSold,
+                currentHolding,
+                wac,
+                currentPrice,
+                currentValue,
+                costBasis,
+                unrealizedPL,
+                unrealizedPLPercent,
+                realizedPL,
+                buys: typeBuys,
+                sells: enrichedSells
             }
-
-            return { ...inv, currentValue, cost, profit, profitPercent, currentPrice }
         })
 
-        const totalProfit = totalValue - totalCost
-        const totalProfitPercent = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0
+        const totalUnrealizedPL = totalValue - totalCostBasis
+        const totalUnrealizedPLPercent = totalCostBasis > 0 ? (totalUnrealizedPL / totalCostBasis) * 100 : 0
 
-        // Metrics for Sold Investments (Realized Profit)
-        let totalRealizedProfit = 0
-        const enrichedSoldInvestments = soldInvestments.map(inv => {
-            const sellingPrice = Number(inv.selling_price)
-            const cost = Number(inv.amount) * Number(inv.purchase_price)
-            const saleValue = Number(inv.amount) * sellingPrice
-            const profit = saleValue - cost
-            const profitPercent = cost > 0 ? (profit / cost) * 100 : 0
+        // Chart data
+        const chartData = types
+            .map(type => ({
+                name: TYPE_LABELS[type],
+                value: typeMetrics[type].currentValue
+            }))
+            .filter(item => item.value > 0)
 
-            totalRealizedProfit += profit
-
-            return { ...inv, saleValue, cost, profit, profitPercent }
-        })
-
-        // Chart Data (Active Only)
-        const chartData = [
-            { name: 'Altın', value: totalGramGold * (prices['gram-altin'] || 0) },
-            { name: '22 Ayar', value: totalBracelet22k * (prices['22-ayar-bilezik'] || 0) },
-            { name: 'Gümüş', value: totalSilverGrams * (prices['gumus'] || 0) },
-            { name: 'Fiziksel', value: totalPhysicalGold * (prices['gram-altin'] || 0) },
-        ].filter(item => item.value > 0)
+        // All enriched sells for the sold tab
+        const allEnrichedSells = types.flatMap(type => typeMetrics[type].sells)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
 
         return {
+            typeMetrics,
             totalValue,
-            totalCost,
-            totalProfit,
-            totalProfitPercent,
-            totalGramGold,
-            totalBracelet22k,
-            totalSilverGrams,
-            totalPhysicalGold,
-            totalRealizedProfit,
-            enrichedActiveInvestments,
-            enrichedSoldInvestments,
-            chartData
+            totalCostBasis,
+            totalUnrealizedPL,
+            totalUnrealizedPLPercent,
+            totalRealizedPL,
+            chartData,
+            buys,
+            allEnrichedSells
         }
     }
 
@@ -104,7 +118,7 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
 
     return (
         <div className="space-y-6">
-            {/* Mobile Header (Refresh is in Navbar on Desktop) */}
+            {/* Mobile Price Header */}
             <div className="md:hidden flex flex-col space-y-3 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-700 pb-2">
                     <div>
@@ -143,199 +157,210 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
             {/* Tabs */}
             <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
                 <button
-                    onClick={() => setActiveTab('active')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'active'
+                    onClick={() => setActiveTab('portfolio')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'portfolio'
                         ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                         }`}
                 >
-                    Aktif Yatırımlar
+                    Portföy
                 </button>
                 <button
-                    onClick={() => setActiveTab('sold')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'sold'
+                    onClick={() => setActiveTab('buys')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'buys'
                         ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                         }`}
                 >
-                    Geçmiş / Bozdurulanlar
+                    Alış İşlemleri
+                </button>
+                <button
+                    onClick={() => setActiveTab('sells')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'sells'
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                        }`}
+                >
+                    Satış İşlemleri
                 </button>
             </div>
 
-            {metrics && activeTab === 'active' && (
+            {/* =============== PORTFOLIO TAB =============== */}
+            {metrics && activeTab === 'portfolio' && (
                 <>
-                    {/* Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Total Value */}
-                        <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 p-6 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/30">
+                        <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 p-5 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/30">
                             <div className="flex items-center space-x-3 mb-2">
                                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                    <Wallet className="text-blue-600 dark:text-blue-400" size={24} />
+                                    <Wallet className="text-blue-600 dark:text-blue-400" size={20} />
                                 </div>
-                                <h3 className="text-gray-600 dark:text-gray-300 font-medium">Toplam Varlık</h3>
+                                <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Toplam Varlık</h3>
                             </div>
-                            <div className="mt-4">
-                                <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                            <div className="mt-3">
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                                     {metrics.totalValue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                                 </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                    Maliyet: {metrics.totalCost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Maliyet: {metrics.totalCostBasis.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                                 </div>
                             </div>
                         </div>
 
-                        {/* Profit/Loss */}
-                        <div className={`bg-gradient-to-br p-6 rounded-2xl shadow-sm border ${metrics.totalProfit >= 0
+                        {/* Unrealized P/L */}
+                        <div className={`bg-gradient-to-br p-5 rounded-2xl shadow-sm border ${metrics.totalUnrealizedPL >= 0
                             ? 'from-green-50 to-white border-green-100 dark:from-green-900/20 dark:to-gray-800 dark:border-green-900/30'
                             : 'from-red-50 to-white border-red-100 dark:from-red-900/20 dark:to-gray-800 dark:border-red-900/30'}`}>
                             <div className="flex items-center space-x-3 mb-2">
-                                <div className={`p-2 rounded-lg ${metrics.totalProfit >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                                    {metrics.totalProfit >= 0 ?
-                                        <TrendingUp className="text-green-600 dark:text-green-400" size={24} /> :
-                                        <TrendingDown className="text-red-600 dark:text-red-400" size={24} />
+                                <div className={`p-2 rounded-lg ${metrics.totalUnrealizedPL >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                                    {metrics.totalUnrealizedPL >= 0 ?
+                                        <TrendingUp className="text-green-600 dark:text-green-400" size={20} /> :
+                                        <TrendingDown className="text-red-600 dark:text-red-400" size={20} />
                                     }
                                 </div>
-                                <h3 className="text-gray-600 dark:text-gray-300 font-medium">Toplam Kar/Zarar</h3>
+                                <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Kağıt Kar/Zarar</h3>
                             </div>
-                            <div className="mt-4">
-                                <div className={`text-3xl font-bold ${metrics.totalProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {metrics.totalProfit > 0 ? '+' : ''}{metrics.totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                            <div className="mt-3">
+                                <div className={`text-2xl font-bold ${metrics.totalUnrealizedPL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    {metrics.totalUnrealizedPL > 0 ? '+' : ''}{metrics.totalUnrealizedPL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                                 </div>
-                                <div className={`text-sm font-medium mt-1 ${metrics.totalProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    %{metrics.totalProfitPercent.toFixed(2)}
+                                <div className={`text-xs font-medium mt-1 ${metrics.totalUnrealizedPL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    %{metrics.totalUnrealizedPLPercent.toFixed(2)}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Holdings */}
-                        <div className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800 p-6 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-900/30">
+                        {/* Realized P/L */}
+                        <div className={`bg-gradient-to-br p-5 rounded-2xl shadow-sm border ${metrics.totalRealizedPL >= 0
+                            ? 'from-emerald-50 to-white border-emerald-100 dark:from-emerald-900/20 dark:to-gray-800 dark:border-emerald-900/30'
+                            : 'from-red-50 to-white border-red-100 dark:from-red-900/20 dark:to-gray-800 dark:border-red-900/30'}`}>
+                            <div className="flex items-center space-x-3 mb-2">
+                                <div className={`p-2 rounded-lg ${metrics.totalRealizedPL >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                                    <DollarSign className={`${metrics.totalRealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`} size={20} />
+                                </div>
+                                <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Gerçekleşen Kar/Zarar</h3>
+                            </div>
+                            <div className="mt-3">
+                                <div className={`text-2xl font-bold ${metrics.totalRealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    {metrics.totalRealizedPL > 0 ? '+' : ''}{metrics.totalRealizedPL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Satışlardan
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Holdings Summary */}
+                        <div className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800 p-5 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-900/30">
                             <div className="flex items-center space-x-3 mb-2">
                                 <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                                    <div className="font-bold text-amber-700 dark:text-amber-500 text-lg">Au/Ag</div>
+                                    <div className="font-bold text-amber-700 dark:text-amber-500 text-sm">Au/Ag</div>
                                 </div>
-                                <h3 className="text-gray-600 dark:text-gray-300 font-medium">Varlık Miktarı</h3>
+                                <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Varlık Miktarı</h3>
                             </div>
-                            <div className="space-y-1">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600 dark:text-gray-400">Gram Altın:</span>
-                                    <span className="font-bold text-gray-900 dark:text-white">{metrics.totalGramGold.toFixed(2)} g</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600 dark:text-gray-400">Fiziksel Altın:</span>
-                                    <span className="font-bold text-gray-900 dark:text-white">{metrics.totalPhysicalGold.toFixed(2)} g</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600 dark:text-gray-400">22 Ayar:</span>
-                                    <span className="font-bold text-gray-900 dark:text-white">{metrics.totalBracelet22k.toFixed(2)} g</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600 dark:text-gray-400">Gümüş:</span>
-                                    <span className="font-bold text-gray-900 dark:text-white">{metrics.totalSilverGrams.toFixed(2)} g</span>
-                                </div>
+                            <div className="space-y-1 mt-3">
+                                {Object.entries(metrics.typeMetrics).map(([type, data]) => (
+                                    data.currentHolding > 0.001 && (
+                                        <div key={type} className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-600 dark:text-gray-400">{TYPE_LABELS[type]}:</span>
+                                            <span className="font-bold text-gray-900 dark:text-white">{data.currentHolding.toFixed(2)} g</span>
+                                        </div>
+                                    )
+                                ))}
+                                {Object.values(metrics.typeMetrics).every(d => d.currentHolding <= 0.001) && (
+                                    <div className="text-sm text-gray-400 dark:text-gray-500">Varlık yok</div>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Charts & List Area */}
+                    {/* Chart + Per-Type Detail */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Chart */}
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 lg:col-span-1">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Portföy Dağılımı</h3>
-                            <div className="h-64 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={metrics.chartData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            fill="#8884d8"
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {metrics.chartData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={0} />
-                                            ))}
-                                        </Pie>
-                                        <RechartsTooltip
-                                            formatter={(value) => `${value.toLocaleString('tr-TR')} ₺`}
-                                            contentStyle={{
-                                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                                borderRadius: '8px',
-                                                border: 'none',
-                                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                            }}
-                                        />
-                                        <Legend wrapperStyle={{ color: 'var(--color-gray-500)' }} />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                        {/* Pie Chart */}
+                        {metrics.chartData.length > 0 && (
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 lg:col-span-1">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Portföy Dağılımı</h3>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={metrics.chartData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={80}
+                                                fill="#8884d8"
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {metrics.chartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={0} />
+                                                ))}
+                                            </Pie>
+                                            <RechartsTooltip
+                                                formatter={(value) => `${value.toLocaleString('tr-TR')} ₺`}
+                                                contentStyle={{
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                    borderRadius: '8px',
+                                                    border: 'none',
+                                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                                }}
+                                            />
+                                            <Legend wrapperStyle={{ color: 'var(--color-gray-500)' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* List */}
-                        <div className="bg-white dark:bg-gray-800 p-0 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 lg:col-span-2 overflow-hidden">
-                            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Yatırım Geçmişi</h3>
+                        {/* Per-Type Detail Table */}
+                        <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden ${metrics.chartData.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Varlık Detayları</h3>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700/50">
                                         <tr>
-                                            <th className="px-6 py-3">Tür</th>
-                                            <th className="px-6 py-3">Miktar</th>
-                                            <th className="px-6 py-3">Alış (Birim)</th>
-                                            <th className="px-6 py-3">Maliyet</th>
-                                            <th className="px-6 py-3">Kar/Zarar</th>
-                                            <th className="px-6 py-3">Tarih</th>
-                                            <th className="px-6 py-3"></th>
+                                            <th className="px-4 py-3">Tür</th>
+                                            <th className="px-4 py-3">Miktar</th>
+                                            <th className="px-4 py-3">Ort. Maliyet</th>
+                                            <th className="px-4 py-3">Güncel Fiyat</th>
+                                            <th className="px-4 py-3">Değer</th>
+                                            <th className="px-4 py-3">Kar/Zarar</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {metrics.enrichedActiveInvestments.map((inv) => (
-                                            <tr key={inv.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                                    {inv.type === 'gram-altin' ? 'Gram Altın' :
-                                                        inv.type === 'gumus' ? 'Gümüş' :
-                                                            inv.type === 'fiziksel-altin' ? 'Fiziksel Altın' : '22 Ayar Bilezik'}
-                                                </td>
-                                                <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{inv.amount} g</td>
-                                                <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                                    {inv.purchase_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-                                                </td>
-                                                <td className="px-6 py-4 font-semibold text-gray-700 dark:text-gray-300">
-                                                    {inv.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-                                                </td>
-                                                <td className={`px-6 py-4 font-bold ${inv.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                    %{inv.profitPercent.toFixed(1)}
-                                                </td>
-                                                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                                                    {format(new Date(inv.purchase_date), 'dd.MM.yyyy')}
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end space-x-2">
-                                                        <button
-                                                            onClick={() => onSell(inv)}
-                                                            className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                                                            title="Bozdur / Sat"
-                                                        >
-                                                            <DollarSign size={18} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => onDelete(inv.id)}
-                                                            className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                                            title="Sil"
-                                                        >
-                                                            <Trash2 size={18} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                        {Object.entries(metrics.typeMetrics).map(([type, data]) => (
+                                            data.currentHolding > 0.001 && (
+                                                <tr key={type} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                                    <td className="px-4 py-4 font-medium text-gray-900 dark:text-white">{TYPE_LABELS[type]}</td>
+                                                    <td className="px-4 py-4 text-gray-700 dark:text-gray-300">{data.currentHolding.toFixed(2)} g</td>
+                                                    <td className="px-4 py-4 text-gray-700 dark:text-gray-300">
+                                                        {data.wac.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                                    </td>
+                                                    <td className="px-4 py-4 text-blue-600 dark:text-blue-400 font-medium">
+                                                        {data.currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                                    </td>
+                                                    <td className="px-4 py-4 font-semibold text-gray-700 dark:text-gray-300">
+                                                        {data.currentValue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                                    </td>
+                                                    <td className={`px-4 py-4 font-bold ${data.unrealizedPL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                        <div>
+                                                            {data.unrealizedPL > 0 ? '+' : ''}{data.unrealizedPL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                                        </div>
+                                                        <div className="text-xs font-medium">
+                                                            %{data.unrealizedPLPercent.toFixed(2)}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )
                                         ))}
-                                        {metrics.enrichedActiveInvestments.length === 0 && (
+                                        {Object.values(metrics.typeMetrics).every(d => d.currentHolding <= 0.001) && (
                                             <tr>
-                                                <td colSpan="7" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                                    Henüz yatırımınız bulunmuyor.
+                                                <td colSpan="6" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                                    Portföyünüzde varlık bulunmuyor.
                                                 </td>
                                             </tr>
                                         )}
@@ -347,67 +372,164 @@ export default function InvestmentDashboard({ investments, onDelete, onSell, pri
                 </>
             )}
 
-            {metrics && activeTab === 'sold' && (
+            {/* =============== BUYS TAB =============== */}
+            {metrics && activeTab === 'buys' && (
                 <div className="space-y-6">
-                    {/* Sold Summary */}
-                    <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800 p-6 rounded-2xl shadow-sm border border-green-100 dark:border-green-900/30 max-w-sm">
+                    {/* Buy Count Summary */}
+                    <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 p-5 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/30 max-w-xs">
                         <div className="flex items-center space-x-3 mb-2">
-                            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                                <DollarSign className="text-green-600 dark:text-green-400" size={24} />
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                <ShoppingCart className="text-blue-600 dark:text-blue-400" size={20} />
                             </div>
-                            <h3 className="text-gray-600 dark:text-gray-300 font-medium">Toplam Gerçekleşen Kar</h3>
+                            <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Toplam Alış</h3>
                         </div>
-                        <div className="mt-4">
-                            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                                +{metrics.totalRealizedProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                        <div className="mt-3">
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.buys.length} işlem</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Toplam: {metrics.buys.reduce((sum, t) => sum + Number(t.amount) * Number(t.unit_price), 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                             </div>
                         </div>
                     </div>
 
-                    {/* Sold List */}
+                    {/* Buy Transactions Table */}
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Bozdurulan Yatırımlar</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Alış İşlemleri</h3>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-700/50">
+                                <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
                                         <th className="px-6 py-3">Tür</th>
                                         <th className="px-6 py-3">Miktar</th>
-                                        <th className="px-6 py-3">Alış Fiyatı</th>
-                                        <th className="px-6 py-3">Satış Fiyatı</th>
-                                        <th className="px-6 py-3">Gerçekleşen Kar</th>
-                                        <th className="px-6 py-3">Satış Tarihi</th>
+                                        <th className="px-6 py-3">Birim Fiyat</th>
+                                        <th className="px-6 py-3">Toplam Maliyet</th>
+                                        <th className="px-6 py-3">Tarih</th>
+                                        <th className="px-6 py-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {metrics.enrichedSoldInvestments.map((inv) => (
-                                        <tr key={inv.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    {metrics.buys.map((t) => (
+                                        <tr key={t.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                             <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                                {inv.type === 'gram-altin' ? 'Gram Altın' :
-                                                    inv.type === 'gumus' ? 'Gümüş' :
-                                                        inv.type === 'fiziksel-altin' ? 'Fiziksel Altın' : '22 Ayar Bilezik'}
+                                                {TYPE_LABELS[t.type] || t.type}
                                             </td>
-                                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{inv.amount} g</td>
+                                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">{Number(t.amount).toFixed(2)} g</td>
                                             <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                                {inv.purchase_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
+                                                {Number(t.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                                             </td>
-                                            <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                                {Number(inv.selling_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL
-                                            </td>
-                                            <td className={`px-6 py-4 font-bold ${inv.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                {inv.profit > 0 ? '+' : ''}{inv.profit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                            <td className="px-6 py-4 font-semibold text-gray-700 dark:text-gray-300">
+                                                {(Number(t.amount) * Number(t.unit_price)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                                             </td>
                                             <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                                                {inv.selling_date ? format(new Date(inv.selling_date), 'dd.MM.yyyy HH:mm') : '-'}
+                                                {format(new Date(t.date), 'dd.MM.yyyy HH:mm')}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => onDelete(t.id)}
+                                                    className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                                    title="Sil"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
-                                    {metrics.enrichedSoldInvestments.length === 0 && (
+                                    {metrics.buys.length === 0 && (
                                         <tr>
                                             <td colSpan="6" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                                Henüz bozdurulan yatırım bulunmuyor.
+                                                Henüz alış işlemi bulunmuyor.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* =============== SELLS TAB =============== */}
+            {metrics && activeTab === 'sells' && (
+                <div className="space-y-6">
+                    {/* Realized P/L Summary */}
+                    <div className={`bg-gradient-to-br p-5 rounded-2xl shadow-sm border max-w-sm ${metrics.totalRealizedPL >= 0
+                        ? 'from-emerald-50 to-white border-emerald-100 dark:from-emerald-900/20 dark:to-gray-800 dark:border-emerald-900/30'
+                        : 'from-red-50 to-white border-red-100 dark:from-red-900/20 dark:to-gray-800 dark:border-red-900/30'}`}>
+                        <div className="flex items-center space-x-3 mb-2">
+                            <div className={`p-2 rounded-lg ${metrics.totalRealizedPL >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                                <DollarSign className={`${metrics.totalRealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`} size={20} />
+                            </div>
+                            <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Toplam Gerçekleşen Kar/Zarar</h3>
+                        </div>
+                        <div className="mt-3">
+                            <div className={`text-2xl font-bold ${metrics.totalRealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {metrics.totalRealizedPL > 0 ? '+' : ''}{metrics.totalRealizedPL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Ağırlıklı ortalama maliyete göre
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sell Transactions Table */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Satış İşlemleri</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Kar/zarar, ağırlıklı ortalama maliyet (WAC) yöntemiyle hesaplanmaktadır.</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700/50">
+                                    <tr>
+                                        <th className="px-4 py-3">Tür</th>
+                                        <th className="px-4 py-3">Miktar</th>
+                                        <th className="px-4 py-3">Satış Fiyatı</th>
+                                        <th className="px-4 py-3">Ort. Maliyet</th>
+                                        <th className="px-4 py-3">Kar/Zarar</th>
+                                        <th className="px-4 py-3">Tarih</th>
+                                        <th className="px-4 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {metrics.allEnrichedSells.map((t) => (
+                                        <tr key={t.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <td className="px-4 py-4 font-medium text-gray-900 dark:text-white">
+                                                {TYPE_LABELS[t.type] || t.type}
+                                            </td>
+                                            <td className="px-4 py-4 text-gray-700 dark:text-gray-300">{Number(t.amount).toFixed(2)} g</td>
+                                            <td className="px-4 py-4 text-gray-700 dark:text-gray-300">
+                                                {Number(t.unit_price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                            </td>
+                                            <td className="px-4 py-4 text-gray-500 dark:text-gray-400">
+                                                {t.wac.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                            </td>
+                                            <td className={`px-4 py-4 font-bold ${t.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                <div>
+                                                    {t.profit > 0 ? '+' : ''}{t.profit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                                                </div>
+                                                <div className="text-xs font-medium">
+                                                    %{t.profitPercent.toFixed(2)}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 text-gray-500 dark:text-gray-400">
+                                                {format(new Date(t.date), 'dd.MM.yyyy HH:mm')}
+                                            </td>
+                                            <td className="px-4 py-4 text-right">
+                                                <button
+                                                    onClick={() => onDelete(t.id)}
+                                                    className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                                    title="Sil"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {metrics.allEnrichedSells.length === 0 && (
+                                        <tr>
+                                            <td colSpan="7" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                                Henüz satış işlemi bulunmuyor.
                                             </td>
                                         </tr>
                                     )}

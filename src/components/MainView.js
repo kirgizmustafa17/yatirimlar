@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Plus, RefreshCw } from 'lucide-react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { Plus, Minus, RefreshCw } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import InvestmentDashboard from './Dashboard'
 import InvestmentForm from './InvestmentForm'
 import SellForm from './SellForm'
-import { deleteInvestment, sellInvestment } from '@/app/actions/investments'
+import { deleteTransaction } from '@/app/actions/investments'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
-export default function MainView({ investments }) {
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const [sellingInvestment, setSellingInvestment] = useState(null)
+export default function MainView({ transactions }) {
+    const [isBuyModalOpen, setIsBuyModalOpen] = useState(false)
+    const [isSellModalOpen, setIsSellModalOpen] = useState(false)
     const [prices, setPrices] = useState(null)
     const [loadingPrices, setLoadingPrices] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -35,23 +35,33 @@ export default function MainView({ investments }) {
 
     useEffect(() => {
         fetchPrices()
-        const interval = setInterval(fetchPrices, 60000) // 1 min refresh
+        const interval = setInterval(fetchPrices, 60000)
         return () => clearInterval(interval)
     }, [])
 
+    // Calculate holdings by type for SellForm validation
+    const holdingsByType = useMemo(() => {
+        const result = {}
+        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik', 'gumus']
+        types.forEach(type => {
+            const buys = transactions.filter(t => t.type === type && t.transaction_type === 'buy')
+            const sells = transactions.filter(t => t.type === type && t.transaction_type === 'sell')
+            const totalBought = buys.reduce((sum, t) => sum + Number(t.amount), 0)
+            const totalSold = sells.reduce((sum, t) => sum + Number(t.amount), 0)
+            const totalCost = buys.reduce((sum, t) => sum + Number(t.amount) * Number(t.unit_price), 0)
+            const wac = totalBought > 0 ? totalCost / totalBought : 0
+            result[type] = {
+                holding: totalBought - totalSold,
+                wac
+            }
+        })
+        return result
+    }, [transactions])
+
     const handleDelete = async (id) => {
-        if (confirm('Bu yatırımı silmek istediğinize emin misiniz?')) {
-            await deleteInvestment(id)
+        if (confirm('Bu işlemi silmek istediğinize emin misiniz?')) {
+            await deleteTransaction(id)
         }
-    }
-
-    const handleSell = (investment) => {
-        setSellingInvestment(investment)
-    }
-
-    const handleSellComplete = async (id, amount, price, date) => {
-        await sellInvestment(id, amount, price, date)
-        setSellingInvestment(null)
     }
 
     return (
@@ -65,7 +75,7 @@ export default function MainView({ investments }) {
                                 Altın/Gümüş Takip
                             </span>
                         </div>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-3">
                             {prices && (
                                 <div className="hidden md:flex items-center space-x-4 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700">
                                     <div className="flex space-x-3">
@@ -96,11 +106,18 @@ export default function MainView({ investments }) {
                             )}
                             <ThemeToggle />
                             <button
-                                onClick={() => setIsModalOpen(true)}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                                onClick={() => setIsBuyModalOpen(true)}
+                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                             >
-                                <Plus size={20} className="mr-2" />
-                                <span className="hidden sm:inline">Yeni Yatırım</span>
+                                <Plus size={18} className="mr-1" />
+                                <span className="hidden sm:inline">Alış</span>
+                            </button>
+                            <button
+                                onClick={() => setIsSellModalOpen(true)}
+                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+                            >
+                                <Minus size={18} className="mr-1" />
+                                <span className="hidden sm:inline">Satış</span>
                             </button>
                         </div>
                     </div>
@@ -109,9 +126,8 @@ export default function MainView({ investments }) {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <InvestmentDashboard
-                    investments={investments}
+                    transactions={transactions}
                     onDelete={handleDelete}
-                    onSell={handleSell}
                     prices={prices}
                     loadingPrices={loadingPrices}
                     onRefresh={fetchPrices}
@@ -119,9 +135,9 @@ export default function MainView({ investments }) {
                 />
             </main>
 
-            {/* Modal */}
-            <Transition show={isModalOpen} as={React.Fragment}>
-                <Dialog as="div" className="relative z-10" onClose={() => setIsModalOpen(false)}>
+            {/* Buy Modal */}
+            <Transition show={isBuyModalOpen} as={React.Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsBuyModalOpen(false)}>
                     <TransitionChild
                         as={React.Fragment}
                         enter="ease-out duration-300"
@@ -131,7 +147,7 @@ export default function MainView({ investments }) {
                         leaveFrom="opacity-100"
                         leaveTo="opacity-0"
                     >
-                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                        <div className="fixed inset-0 bg-gray-500/75 dark:bg-black/60 transition-opacity" />
                     </TransitionChild>
 
                     <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -147,12 +163,15 @@ export default function MainView({ investments }) {
                             >
                                 <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
                                     <div className="mb-4">
-                                        <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                                            Yeni Yatırım Ekle
+                                        <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center">
+                                            <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3">
+                                                <Plus size={18} className="text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                            Yeni Alış İşlemi
                                         </DialogTitle>
                                     </div>
                                     <InvestmentForm
-                                        onCancel={() => setIsModalOpen(false)}
+                                        onCancel={() => setIsBuyModalOpen(false)}
                                         currentPrices={prices}
                                     />
                                 </DialogPanel>
@@ -162,9 +181,9 @@ export default function MainView({ investments }) {
                 </Dialog>
             </Transition>
 
-            {/* Sell Investment Modal */}
-            <Transition show={!!sellingInvestment} as={React.Fragment}>
-                <Dialog as="div" className="relative z-10" onClose={() => setSellingInvestment(null)}>
+            {/* Sell Modal */}
+            <Transition show={isSellModalOpen} as={React.Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsSellModalOpen(false)}>
                     <TransitionChild
                         as={React.Fragment}
                         enter="ease-out duration-300"
@@ -174,7 +193,7 @@ export default function MainView({ investments }) {
                         leaveFrom="opacity-100"
                         leaveTo="opacity-0"
                     >
-                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                        <div className="fixed inset-0 bg-gray-500/75 dark:bg-black/60 transition-opacity" />
                     </TransitionChild>
 
                     <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -190,18 +209,18 @@ export default function MainView({ investments }) {
                             >
                                 <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
                                     <div className="mb-4">
-                                        <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                                            Yatırım Bozdur / Satış
+                                        <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center">
+                                            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg mr-3">
+                                                <Minus size={18} className="text-emerald-600 dark:text-emerald-400" />
+                                            </div>
+                                            Yeni Satış İşlemi
                                         </DialogTitle>
                                     </div>
-                                    {sellingInvestment && (
-                                        <SellForm
-                                            investment={sellingInvestment}
-                                            currentPrice={prices && prices[sellingInvestment.type === 'fiziksel-altin' ? 'gram-altin' : sellingInvestment.type]}
-                                            onCancel={() => setSellingInvestment(null)}
-                                            onComplete={handleSellComplete}
-                                        />
-                                    )}
+                                    <SellForm
+                                        onCancel={() => setIsSellModalOpen(false)}
+                                        holdingsByType={holdingsByType}
+                                        currentPrices={prices}
+                                    />
                                 </DialogPanel>
                             </TransitionChild>
                         </div>
