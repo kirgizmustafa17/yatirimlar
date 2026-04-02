@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 
 export async function getTransactions() {
     const { data, error } = await supabase
-        .from('transactions')
+        .from('ytrm_transactions')
         .select('*')
         .order('date', { ascending: false })
 
@@ -24,7 +24,7 @@ export async function addBuyTransaction(formData) {
     const date = formData.get('date')
 
     const { error } = await supabase
-        .from('transactions')
+        .from('ytrm_transactions')
         .insert([{
             type,
             transaction_type: 'buy',
@@ -50,7 +50,7 @@ export async function addSellTransaction(formData) {
 
     // Validate: satılacak miktar mevcut miktarı aşamaz
     const { data: allTransactions, error: fetchError } = await supabase
-        .from('transactions')
+        .from('ytrm_transactions')
         .select('*')
         .eq('type', type)
 
@@ -73,7 +73,7 @@ export async function addSellTransaction(formData) {
     }
 
     const { error } = await supabase
-        .from('transactions')
+        .from('ytrm_transactions')
         .insert([{
             type,
             transaction_type: 'sell',
@@ -92,7 +92,7 @@ export async function addSellTransaction(formData) {
 
 export async function deleteTransaction(id) {
     const { error } = await supabase
-        .from('transactions')
+        .from('ytrm_transactions')
         .delete()
         .match({ id })
 
