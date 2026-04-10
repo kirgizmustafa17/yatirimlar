@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering - never cache this route
+export const dynamic = 'force-dynamic';
+
 const GRAM_ALTIN_URL = 'https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/';
 const AYAR22_URL = 'https://bigpara.hurriyet.com.tr/altin/22-ayar-bilezik-fiyati/';
 
@@ -17,11 +20,25 @@ function parsePrice(str) {
     return isNaN(val) ? null : val;
 }
 
-// Extract the first <span class="value dw">...</span> from HTML
+// Extract price from HTML using multiple fallback patterns
 function extractValue(html) {
-    // Matches: <span class="value dw">6.822,89</span>
-    const match = html.match(/<span[^>]*class="value dw"[^>]*>([\d.,]+)<\/span>/);
-    return match ? match[1] : null;
+    // Pattern 1: <span class="value dw">6.822,89</span>
+    let match = html.match(/<span[^>]*class="value dw"[^>]*>([\d.,]+)<\/span>/);
+    if (match) return match[1];
+
+    // Pattern 2: <span class="value ...">6.822,89</span> (any class containing "value")
+    match = html.match(/<span[^>]*class="[^"]*value[^"]*"[^>]*>([\d.,]+)<\/span>/);
+    if (match) return match[1];
+
+    // Pattern 3: Summary text "alış fiyatı 6.833,79 TL"
+    match = html.match(/al[ıi][şs]\s+fiyat[ıi]\s+([\d.,]+)\s+TL/i);
+    if (match) return match[1];
+
+    // Pattern 4: Any number in the main price display area (data-value or content attribute)
+    match = html.match(/data-value="([\d.,]+)"/);
+    if (match) return match[1];
+
+    return null;
 }
 
 // Extract update time from page (e.g. "17:01")
@@ -34,7 +51,7 @@ function extractTime(html) {
 async function fetchPage(url) {
     const response = await fetch(url, {
         headers: FETCH_HEADERS,
-        next: { revalidate: 0 }, // Always fresh - caching handled at caller level
+        cache: 'no-store', // Always fresh - never cache
     });
     if (!response.ok) {
         throw new Error(`Fetch failed for ${url}: ${response.status}`);
