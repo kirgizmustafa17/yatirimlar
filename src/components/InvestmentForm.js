@@ -30,8 +30,7 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
 
     const getCurrentPrice = () => {
         if (!currentPrices) return null
-        const priceKey = selectedType === 'fiziksel-altin' ? 'gram-altin' : selectedType
-        return currentPrices[priceKey]
+        return currentPrices[selectedType]
     }
 
     const currentPrice = getCurrentPrice()
@@ -50,6 +49,7 @@ export default function InvestmentForm({ onCancel, currentPrices }) {
                     <option value="gram-altin">Gram Altın (24 Ayar)</option>
                     <option value="fiziksel-altin">Fiziksel Altın (24 Ayar - Elden)</option>
                     <option value="22-ayar-bilezik">22 Ayar Bilezik</option>
+                    <option value="gumus">Gümüş</option>
                 </select>
             </div>
 

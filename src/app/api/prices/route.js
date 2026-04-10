@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 
-// Force dynamic rendering - never cache this route
 export const dynamic = 'force-dynamic';
 
-const GRAM_ALTIN_URL = 'https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/';
-const AYAR22_URL = 'https://bigpara.hurriyet.com.tr/altin/22-ayar-bilezik-fiyati/';
+const SOURCES = {
+    '22-ayar-bilezik': { url: 'https://altin.doviz.com/22-ayar-bilezik', key: '22-ayar-bilezik' },
+    'gumus': { url: 'https://altin.doviz.com/gumus', key: 'gumus' },
+    'fiziksel-altin': { url: 'https://altin.doviz.com/kapalicarsi/gram-altin', key: '20-gram-altin' },
+    'gram-altin': { url: 'https://altin.doviz.com/dunya-katilim/gram-altin', key: '38-gram-altin' }
+};
 
 const FETCH_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -12,7 +15,6 @@ const FETCH_HEADERS = {
     'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
 };
 
-// Helper: parse Turkish-formatted number "6.822,89" -> 6822.89
 function parsePrice(str) {
     if (!str) return null;
     const cleaned = str.trim().replace(/\./g, '').replace(',', '.');
@@ -20,91 +22,45 @@ function parsePrice(str) {
     return isNaN(val) ? null : val;
 }
 
-// Extract price from HTML using multiple fallback patterns
-function extractValue(html) {
-    // Pattern 1: <span class="value dw">6.822,89</span>
-    let match = html.match(/<span[^>]*class="value dw"[^>]*>([\d.,]+)<\/span>/);
-    if (match) return match[1];
-
-    // Pattern 2: <span class="value ...">6.822,89</span> (any class containing "value")
-    match = html.match(/<span[^>]*class="[^"]*value[^"]*"[^>]*>([\d.,]+)<\/span>/);
-    if (match) return match[1];
-
-    // Pattern 3: Summary text "alış fiyatı 6.833,79 TL"
-    match = html.match(/al[ıi][şs]\s+fiyat[ıi]\s+([\d.,]+)\s+TL/i);
-    if (match) return match[1];
-
-    // Pattern 4: Any number in the main price display area (data-value or content attribute)
-    match = html.match(/data-value="([\d.,]+)"/);
-    if (match) return match[1];
-
-    return null;
-}
-
-// Extract update time from page (e.g. "17:01")
-function extractTime(html) {
-    // Bigpara typically shows time like: <span class="time">17:01</span>
-    const match = html.match(/<span[^>]*class="time"[^>]*>(\d{2}:\d{2})<\/span>/);
-    return match ? match[1] : null;
-}
-
-async function fetchPage(url) {
-    const response = await fetch(url, {
-        headers: FETCH_HEADERS,
-        cache: 'no-store', // Always fresh - never cache
-    });
-    if (!response.ok) {
-        throw new Error(`Fetch failed for ${url}: ${response.status}`);
+async function fetchPrice(sourceItem) {
+    try {
+        const response = await fetch(sourceItem.url, {
+            headers: FETCH_HEADERS,
+            cache: 'no-store',
+            next: { revalidate: 0 }
+        });
+        if (!response.ok) return null;
+        const html = await response.text();
+        const regex = new RegExp(`data-socket-key="${sourceItem.key}"[^>]*>\\s*([\\d.,]+)`);
+        const match = html.match(regex);
+        return match ? parsePrice(match[1]) : null;
+    } catch (e) {
+        console.error(`Error fetching ${sourceItem.url}:`, e);
+        return null;
     }
-    return response.text();
 }
 
 export async function GET() {
     try {
-        // Fetch both pages in parallel
-        const [gramHtml, ayar22Html] = await Promise.all([
-            fetchPage(GRAM_ALTIN_URL),
-            fetchPage(AYAR22_URL),
-        ]);
-
-        const gramPriceRaw = extractValue(gramHtml);
-        const ayar22PriceRaw = extractValue(ayar22Html);
-
-        const gramPrice = parsePrice(gramPriceRaw);
-        const ayar22Price = parsePrice(ayar22PriceRaw);
-
-        // Try to get update time from gram altın page
-        const updateTime = extractTime(gramHtml);
-
-        // Build updateDate
-        let updateDate = new Date().toISOString();
-        if (updateTime && updateTime.includes(':')) {
-            try {
-                const [hours, minutes] = updateTime.split(':');
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const trTime = `${year}-${month}-${day}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00+03:00`;
-                updateDate = new Date(trTime).toISOString();
-            } catch (e) {
-                console.error('Time parsing error', e);
-            }
-        }
+        const keys = Object.keys(SOURCES);
+        const promises = keys.map(k => fetchPrice(SOURCES[k]));
+        const results = await Promise.all(promises);
 
         const data = {
-            'gram-altin': gramPrice,
-            '22-ayar-bilezik': ayar22Price,
-            updateDate,
+            updateDate: new Date().toISOString()
         };
+
+        keys.forEach((k, index) => {
+            data[k] = results[index];
+        });
 
         return NextResponse.json(data, {
             headers: {
-                'Cache-Control': 'no-store',
+                'Cache-Control': 'no-store, max-age=0',
             },
         });
     } catch (error) {
-        console.error('Scraping error:', error);
+        console.error('API Error:', error);
         return NextResponse.json(
             { error: 'Failed to fetch prices', detail: error.message },
             { status: 500 }

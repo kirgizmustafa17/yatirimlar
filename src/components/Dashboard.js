@@ -11,7 +11,8 @@ const COLORS = ['#FFD700', '#B8860B', '#DAA520']
 const TYPE_LABELS = {
     'gram-altin': 'Gram Altın',
     'fiziksel-altin': 'Fiziksel Altın',
-    '22-ayar-bilezik': '22 Ayar Bilezik'
+    '22-ayar-bilezik': '22 Ayar Bilezik',
+    'gumus': 'Gümüş'
 }
 
 export default function InvestmentDashboard({ transactions, onDelete, prices, loadingPrices, onRefresh, refreshing }) {
@@ -24,7 +25,7 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
         const buys = transactions.filter(t => t.transaction_type === 'buy')
         const sells = transactions.filter(t => t.transaction_type === 'sell')
 
-        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik']
+        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik', 'gumus']
         const typeMetrics = {}
 
         let totalValue = 0
@@ -43,8 +44,7 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
             const totalBuyCost = typeBuys.reduce((sum, t) => sum + Number(t.amount) * Number(t.unit_price), 0)
             const wac = totalBought > 0 ? totalBuyCost / totalBought : 0
 
-            const priceKey = type === 'fiziksel-altin' ? 'gram-altin' : type
-            const currentPrice = prices[priceKey] || 0
+            const currentPrice = prices[type] || 0
 
             const currentValue = currentHolding * currentPrice
             const costBasis = currentHolding * wac
@@ -136,7 +136,7 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
                 </div>
 
                 {prices && (
-                    <div className="grid grid-cols-2 gap-2 text-sm text-center">
+                    <div className="grid grid-cols-3 gap-2 text-sm text-center">
                         <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
                             <div className="text-xs text-amber-700 dark:text-amber-500 font-medium">Gram Altın</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['gram-altin']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
@@ -144,6 +144,10 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
                         <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
                             <div className="text-xs text-amber-800 dark:text-amber-600 font-medium">22 Ayar</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-900/20 rounded p-2">
+                            <div className="text-xs text-slate-700 dark:text-slate-400 font-medium">Gümüş</div>
+                            <div className="font-bold text-gray-900 dark:text-white">{prices['gumus']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
                         </div>
                     </div>
                 )}

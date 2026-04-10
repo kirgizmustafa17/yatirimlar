@@ -7,7 +7,8 @@ import { addSellTransaction } from '@/app/actions/investments'
 const TYPE_LABELS = {
     'gram-altin': 'Gram Altın (24 Ayar)',
     'fiziksel-altin': 'Fiziksel Altın (24 Ayar - Elden)',
-    '22-ayar-bilezik': '22 Ayar Bilezik'
+    '22-ayar-bilezik': '22 Ayar Bilezik',
+    'gumus': 'Gümüş'
 }
 
 export default function SellForm({ onCancel, holdingsByType, currentPrices }) {
@@ -29,8 +30,7 @@ export default function SellForm({ onCancel, holdingsByType, currentPrices }) {
     }, [availableTypes, selectedType])
 
     const selectedHolding = holdingsByType[selectedType]
-    const priceKey = selectedType === 'fiziksel-altin' ? 'gram-altin' : selectedType
-    const currentMarketPrice = currentPrices?.[priceKey]
+    const currentMarketPrice = currentPrices?.[selectedType]
 
     async function handleSubmit(event) {
         event.preventDefault()
