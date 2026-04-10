@@ -6,13 +6,12 @@ import { RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign, ArrowUpIcon, A
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
-const COLORS = ['#FFD700', '#B8860B', '#E5E4E2', '#DAA520']
+const COLORS = ['#FFD700', '#B8860B', '#DAA520']
 
 const TYPE_LABELS = {
     'gram-altin': 'Gram Altın',
     'fiziksel-altin': 'Fiziksel Altın',
-    '22-ayar-bilezik': '22 Ayar Bilezik',
-    'gumus': 'Gümüş'
+    '22-ayar-bilezik': '22 Ayar Bilezik'
 }
 
 export default function InvestmentDashboard({ transactions, onDelete, prices, loadingPrices, onRefresh, refreshing }) {
@@ -25,7 +24,7 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
         const buys = transactions.filter(t => t.transaction_type === 'buy')
         const sells = transactions.filter(t => t.transaction_type === 'sell')
 
-        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik', 'gumus']
+        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik']
         const typeMetrics = {}
 
         let totalValue = 0
@@ -137,18 +136,14 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
                 </div>
 
                 {prices && (
-                    <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                    <div className="grid grid-cols-2 gap-2 text-sm text-center">
                         <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
-                            <div className="text-xs text-amber-700 dark:text-amber-500 font-medium">Gram</div>
+                            <div className="text-xs text-amber-700 dark:text-amber-500 font-medium">Gram Altın</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['gram-altin']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
                         </div>
                         <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
                             <div className="text-xs text-amber-800 dark:text-amber-600 font-medium">22 Ayar</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
-                        </div>
-                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded p-2">
-                            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">Gümüş</div>
-                            <div className="font-bold text-gray-900 dark:text-white">{prices['gumus']?.toLocaleString('tr-TR')} ₺</div>
                         </div>
                     </div>
                 )}
@@ -255,7 +250,7 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
                         <div className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800 p-5 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-900/30">
                             <div className="flex items-center space-x-3 mb-2">
                                 <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                                    <div className="font-bold text-amber-700 dark:text-amber-500 text-sm">Au/Ag</div>
+                                    <div className="font-bold text-amber-700 dark:text-amber-500 text-sm">Au</div>
                                 </div>
                                 <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Varlık Miktarı</h3>
                             </div>

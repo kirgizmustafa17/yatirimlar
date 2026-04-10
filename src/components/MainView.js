@@ -42,7 +42,7 @@ export default function MainView({ transactions }) {
     // Calculate holdings by type for SellForm validation
     const holdingsByType = useMemo(() => {
         const result = {}
-        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik', 'gumus']
+        const types = ['gram-altin', 'fiziksel-altin', '22-ayar-bilezik']
         types.forEach(type => {
             const buys = transactions.filter(t => t.type === type && t.transaction_type === 'buy')
             const sells = transactions.filter(t => t.type === type && t.transaction_type === 'sell')
@@ -72,7 +72,7 @@ export default function MainView({ transactions }) {
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
                             <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-amber-600">
-                                Altın/Gümüş Takip
+                            Altın Takip
                             </span>
                         </div>
                         <div className="flex items-center space-x-3">
@@ -84,9 +84,6 @@ export default function MainView({ transactions }) {
                                         </span>
                                         <span className="font-medium text-amber-700 dark:text-amber-600">
                                             22K: <span className="text-gray-900 dark:text-white">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR')} ₺</span>
-                                        </span>
-                                        <span className="font-medium text-gray-500 dark:text-gray-400">
-                                            Ag: <span className="text-gray-900 dark:text-white">{prices['gumus']?.toLocaleString('tr-TR')} ₺</span>
                                         </span>
                                     </div>
                                     <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>

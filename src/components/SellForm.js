@@ -7,8 +7,7 @@ import { addSellTransaction } from '@/app/actions/investments'
 const TYPE_LABELS = {
     'gram-altin': 'Gram Altın (24 Ayar)',
     'fiziksel-altin': 'Fiziksel Altın (24 Ayar - Elden)',
-    '22-ayar-bilezik': '22 Ayar Bilezik',
-    'gumus': 'Gümüş'
+    '22-ayar-bilezik': '22 Ayar Bilezik'
 }
 
 export default function SellForm({ onCancel, holdingsByType, currentPrices }) {

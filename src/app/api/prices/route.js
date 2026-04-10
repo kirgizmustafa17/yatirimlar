@@ -1,97 +1,95 @@
 import { NextResponse } from 'next/server';
 
-// Bigpara Altın Sayfası
-const URL = 'https://bigpara.hurriyet.com.tr/altin/';
+const GRAM_ALTIN_URL = 'https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/';
+const AYAR22_URL = 'https://bigpara.hurriyet.com.tr/altin/22-ayar-bilezik-fiyati/';
+
+const FETCH_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+};
+
+// Helper: parse Turkish-formatted number "6.822,89" -> 6822.89
+function parsePrice(str) {
+    if (!str) return null;
+    const cleaned = str.trim().replace(/\./g, '').replace(',', '.');
+    const val = parseFloat(cleaned);
+    return isNaN(val) ? null : val;
+}
+
+// Extract the first <span class="value dw">...</span> from HTML
+function extractValue(html) {
+    // Matches: <span class="value dw">6.822,89</span>
+    const match = html.match(/<span[^>]*class="value dw"[^>]*>([\d.,]+)<\/span>/);
+    return match ? match[1] : null;
+}
+
+// Extract update time from page (e.g. "17:01")
+function extractTime(html) {
+    // Bigpara typically shows time like: <span class="time">17:01</span>
+    const match = html.match(/<span[^>]*class="time"[^>]*>(\d{2}:\d{2})<\/span>/);
+    return match ? match[1] : null;
+}
+
+async function fetchPage(url) {
+    const response = await fetch(url, {
+        headers: FETCH_HEADERS,
+        next: { revalidate: 0 }, // Always fresh - caching handled at caller level
+    });
+    if (!response.ok) {
+        throw new Error(`Fetch failed for ${url}: ${response.status}`);
+    }
+    return response.text();
+}
 
 export async function GET() {
     try {
-        const response = await fetch(URL, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            },
-            next: { revalidate: 600 } // Revalidate every 10 minutes (600 seconds)
-        });
+        // Fetch both pages in parallel
+        const [gramHtml, ayar22Html] = await Promise.all([
+            fetchPage(GRAM_ALTIN_URL),
+            fetchPage(AYAR22_URL),
+        ]);
 
-        if (!response.ok) {
-            throw new Error(`Bigpara fetch failed: ${response.status}`);
-        }
+        const gramPriceRaw = extractValue(gramHtml);
+        const ayar22PriceRaw = extractValue(ayar22Html);
 
-        const html = await response.text();
+        const gramPrice = parsePrice(gramPriceRaw);
+        const ayar22Price = parsePrice(ayar22PriceRaw);
 
-        // Regex to find all <li class="cell009">...</li> values
-        // Using global flag to find all occurrences
-        const regex = /<li class="cell009">(.*?)<\/li>/g;
-        const matches = [];
-        let match;
+        // Try to get update time from gram altın page
+        const updateTime = extractTime(gramHtml);
 
-        while ((match = regex.exec(html)) !== null) {
-            matches.push(match[1]); // match[1] is the content inside the tag
-        }
-
-        // Indices (User provided 5th, 8th, 9th, 12th, 93rd, 96th elements... which are 1-based?)
-        // User said:
-        // 5. element -> Gold Price. (Index 4)
-        // 8. element -> Gold Time. (Index 7)
-        // 9. element -> 22k Bracelet Price (Index 8)
-        // 12. element -> 22k Bracelet Time (Index 11)
-        // 93. element -> Silver Price (Index 92)
-        // 96. element -> Silver Time (Index 95)
-
-        const goldPrice = matches[4];
-        const goldTime = matches[7];
-
-        const braceletPrice = matches[8];
-        const braceletTime = matches[11];
-
-        const silverPrice = matches[92];
-
-        // Helper to parse "2.266,62" -> 2266.62
-        const parsePrice = (str) => {
-            if (!str) return null;
-            // Remove dots (thousands), replace comma with dot (decimal)
-            return parseFloat(str.replace(/\./g, '').replace(',', '.'));
-        };
-
-        const data = {
-            'gram-altin': parsePrice(goldPrice),
-            '22-ayar-bilezik': parsePrice(braceletPrice),
-            'gumus': parsePrice(silverPrice),
-            'updateDate': new Date().toISOString()
-        };
-
-        // Parse time if valid (e.g. "17:01")
-        // Bigpara only gives HH:mm, so we assume today
-        if (goldTime && goldTime.includes(':')) {
+        // Build updateDate
+        let updateDate = new Date().toISOString();
+        if (updateTime && updateTime.includes(':')) {
             try {
-                const [hours, minutes] = goldTime.split(':');
+                const [hours, minutes] = updateTime.split(':');
                 const now = new Date();
-
-                // Construct a date string in TRT (UTC+3)
-                // Format: YYYY-MM-DDTHH:mm:00+03:00
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const day = String(now.getDate()).padStart(2, '0');
-
                 const trTime = `${year}-${month}-${day}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00+03:00`;
-
-                // Parse this string - javascript correctly handles the offset
-                data.updateDate = new Date(trTime).toISOString();
+                updateDate = new Date(trTime).toISOString();
             } catch (e) {
                 console.error('Time parsing error', e);
             }
         }
 
-        // Ensure valid JSON numbers
-        if (isNaN(data['gram-altin'])) data['gram-altin'] = null;
-        if (isNaN(data['22-ayar-bilezik'])) data['22-ayar-bilezik'] = null;
-        if (isNaN(data['gumus'])) data['gumus'] = null;
+        const data = {
+            'gram-altin': gramPrice,
+            '22-ayar-bilezik': ayar22Price,
+            updateDate,
+        };
 
-        return NextResponse.json(data);
+        return NextResponse.json(data, {
+            headers: {
+                'Cache-Control': 'no-store',
+            },
+        });
     } catch (error) {
         console.error('Scraping error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch prices' },
+            { error: 'Failed to fetch prices', detail: error.message },
             { status: 500 }
         );
     }
