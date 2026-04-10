@@ -79,14 +79,21 @@ export default function MainView({ transactions }) {
                             {prices && (
                                 <div className="hidden md:flex items-center space-x-4 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700">
                                     <div className="flex space-x-3">
-                                        <span className="font-medium text-amber-600 dark:text-amber-500">
+                                        <span className="font-medium text-amber-600 dark:text-amber-500 text-xs sm:text-sm">
                                             Gr: <span className="text-gray-900 dark:text-white">{prices['gram-altin']?.toLocaleString('tr-TR')} ₺</span>
+                                            {prices['gram-altin-time'] && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">({prices['gram-altin-time']})</span>}
                                         </span>
-                                        <span className="font-medium text-amber-700 dark:text-amber-600">
+                                        <span className="font-medium text-amber-700 dark:text-amber-600 text-xs sm:text-sm">
+                                            Fzk: <span className="text-gray-900 dark:text-white">{prices['fiziksel-altin']?.toLocaleString('tr-TR')} ₺</span>
+                                            {prices['fiziksel-altin-time'] && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">({prices['fiziksel-altin-time']})</span>}
+                                        </span>
+                                        <span className="font-medium text-amber-700 dark:text-amber-600 text-xs sm:text-sm">
                                             22K: <span className="text-gray-900 dark:text-white">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR')} ₺</span>
+                                            {prices['22-ayar-bilezik-time'] && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">({prices['22-ayar-bilezik-time']})</span>}
                                         </span>
-                                        <span className="font-medium text-slate-600 dark:text-slate-400">
+                                        <span className="font-medium text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
                                             Ag: <span className="text-gray-900 dark:text-white">{prices['gumus']?.toLocaleString('tr-TR')} ₺</span>
+                                            {prices['gumus-time'] && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">({prices['gumus-time']})</span>}
                                         </span>
                                     </div>
                                     <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>

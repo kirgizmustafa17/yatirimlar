@@ -136,18 +136,26 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
                 </div>
 
                 {prices && (
-                    <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                    <div className="grid grid-cols-2 gap-2 text-sm text-center">
                         <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
                             <div className="text-xs text-amber-700 dark:text-amber-500 font-medium">Gram Altın</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['gram-altin']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                            {prices['gram-altin-time'] && <div className="text-[10px] text-gray-500 mt-0.5">({prices['gram-altin-time']})</div>}
+                        </div>
+                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
+                            <div className="text-xs text-amber-800 dark:text-amber-600 font-medium">Fiziksel Altın</div>
+                            <div className="font-bold text-gray-900 dark:text-white">{prices['fiziksel-altin']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                            {prices['fiziksel-altin-time'] && <div className="text-[10px] text-gray-500 mt-0.5">({prices['fiziksel-altin-time']})</div>}
                         </div>
                         <div className="bg-amber-50 dark:bg-amber-900/20 rounded p-2">
                             <div className="text-xs text-amber-800 dark:text-amber-600 font-medium">22 Ayar</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['22-ayar-bilezik']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                            {prices['22-ayar-bilezik-time'] && <div className="text-[10px] text-gray-500 mt-0.5">({prices['22-ayar-bilezik-time']})</div>}
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-900/20 rounded p-2">
                             <div className="text-xs text-slate-700 dark:text-slate-400 font-medium">Gümüş</div>
                             <div className="font-bold text-gray-900 dark:text-white">{prices['gumus']?.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺</div>
+                            {prices['gumus-time'] && <div className="text-[10px] text-gray-500 mt-0.5">({prices['gumus-time']})</div>}
                         </div>
                     </div>
                 )}

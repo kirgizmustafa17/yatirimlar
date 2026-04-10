@@ -29,14 +29,19 @@ async function fetchPrice(sourceItem) {
             cache: 'no-store',
             next: { revalidate: 0 }
         });
-        if (!response.ok) return null;
+        if (!response.ok) return { price: null, time: null };
         const html = await response.text();
         const regex = new RegExp(`data-socket-key="${sourceItem.key}"[^>]*>\\s*([\\d.,]+)`);
         const match = html.match(regex);
-        return match ? parsePrice(match[1]) : null;
+        const timeMatch = html.match(/Son\s*\((\d{2}:\d{2})\)/);
+        
+        return {
+            price: match ? parsePrice(match[1]) : null,
+            time: timeMatch ? timeMatch[1] : null
+        };
     } catch (e) {
         console.error(`Error fetching ${sourceItem.url}:`, e);
-        return null;
+        return { price: null, time: null };
     }
 }
 
@@ -51,7 +56,8 @@ export async function GET() {
         };
 
         keys.forEach((k, index) => {
-            data[k] = results[index];
+            data[k] = results[index].price;
+            data[`${k}-time`] = results[index].time;
         });
 
         return NextResponse.json(data, {
