@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
-import { RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign, ArrowUpIcon, ArrowDownIcon, Trash2, ShoppingCart, Tag } from 'lucide-react'
+import { RefreshCw, Wallet, TrendingUp, TrendingDown, DollarSign, ArrowUpIcon, ArrowDownIcon, Trash2, ShoppingCart, Tag, Coins } from 'lucide-react'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
@@ -262,7 +262,7 @@ export default function InvestmentDashboard({ transactions, onDelete, prices, lo
                         <div className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800 p-5 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-900/30">
                             <div className="flex items-center space-x-3 mb-2">
                                 <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                                    <div className="font-bold text-amber-700 dark:text-amber-500 text-sm">Au</div>
+                                    <Coins className="text-amber-600 dark:text-amber-400" size={20} />
                                 </div>
                                 <h3 className="text-gray-600 dark:text-gray-300 font-medium text-sm">Varlık Miktarı</h3>
                             </div>
