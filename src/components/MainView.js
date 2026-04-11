@@ -35,7 +35,7 @@ export default function MainView({ transactions }) {
 
     useEffect(() => {
         fetchPrices()
-        const interval = setInterval(fetchPrices, 60000)
+        const interval = setInterval(fetchPrices, 300000)
         return () => clearInterval(interval)
     }, [])
 
@@ -72,7 +72,7 @@ export default function MainView({ transactions }) {
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
                             <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-amber-600">
-                            Altın Takip
+                                Altın Takip
                             </span>
                         </div>
                         <div className="flex items-center space-x-3">
@@ -95,16 +95,6 @@ export default function MainView({ transactions }) {
                                             Ag: <span className="text-gray-900 dark:text-white">{prices['gumus']?.toLocaleString('tr-TR')} ₺</span>
                                             {prices['gumus-time'] && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 font-normal">({prices['gumus-time']})</span>}
                                         </span>
-                                    </div>
-                                    <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
-                                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                        <button
-                                            onClick={fetchPrices}
-                                            disabled={refreshing}
-                                            className={`p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all ${refreshing ? 'animate-spin' : ''}`}
-                                        >
-                                            <RefreshCw size={14} className="text-blue-600 dark:text-blue-400" />
-                                        </button>
                                     </div>
                                 </div>
                             )}
