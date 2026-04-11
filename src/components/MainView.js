@@ -98,9 +98,6 @@ export default function MainView({ transactions }) {
                                     </div>
                                     <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
                                     <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                        <span className="mr-2">
-                                            {prices.updateDate ? format(new Date(prices.updateDate), 'HH:mm', { locale: tr }) : '-'}
-                                        </span>
                                         <button
                                             onClick={fetchPrices}
                                             disabled={refreshing}
